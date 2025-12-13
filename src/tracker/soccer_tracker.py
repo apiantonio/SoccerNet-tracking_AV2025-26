@@ -1,7 +1,8 @@
 import os
 import glob
 from ultralytics import YOLO
-from tracker_config import TrackerConfig
+from src.tracker_config import TrackerConfig
+
 
 class SoccerTracker:
     """Classe per il tracking di oggetti in immagini di calcio."""    
