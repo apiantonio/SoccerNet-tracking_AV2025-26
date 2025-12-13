@@ -4,6 +4,8 @@ from ultralytics import YOLO
 from tracker_config import TrackerConfig
 
 class SoccerTracker:
+    """Classe per il tracking di oggetti in immagini di calcio."""    
+    
     def __init__(self, config: TrackerConfig):
         self.cfg = config
         print(f"🔄 Caricamento modello da: {self.cfg.model_path}")

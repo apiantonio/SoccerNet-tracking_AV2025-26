@@ -1,8 +1,11 @@
 import os
 from ultralytics import YOLO
 
-# --- CLASSE DI CONFIGURAZIONE ---
 class TrackerConfig:
+    """Classe di configurazione per il tracker di calcio.
+    Contiene tutti i parametri necessari per eseguire il tracking e la visualizzazione.
+    """
+    
     def __init__(self, 
                  root_dir=None,
                  dataset_rel_path='tracking/train',
