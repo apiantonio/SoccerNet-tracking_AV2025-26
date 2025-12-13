@@ -18,6 +18,3 @@ venv/
 
 # --- Modelli Salvati ---
 models/
-
-# --- Output di Esecuzione ---
-output/*.mp4
