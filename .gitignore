@@ -1,0 +1,23 @@
+# --- Dataset e Dati Pesanti ---
+tracking/
+tracking/train/
+tracking/test/
+tracking/challenge/
+
+
+# --- Python Cache e Ambienti Virtuali ---
+__pycache__/
+*.py[cod]
+.venv/
+env/
+venv/
+
+# --- IDE Settings ---
+.vscode/
+.idea/
+
+# --- Modelli Salvati ---
+models/
+
+# --- Output di Esecuzione ---
+output/*.mp4
