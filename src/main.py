@@ -1,10 +1,11 @@
 import os
 import glob
+import torch
+import gc
 from tracker_config import TrackerConfig
 from tracker.soccer_tracker import SoccerTracker
 from visualizer.tracking_visualizer import TrackingVisualizer
-import torch
-import gc
+from behaviour.behaviour_analyzer import BehaviorAnalyzer
 
 def main():
     # 1. SETUP CONFIGURAZIONE
@@ -14,7 +15,7 @@ def main():
     config = TrackerConfig(
         root_dir=current_dir,
         dataset_rel_path='tracking/train',
-        output_rel_path='output/buffer60_match70_high60_reid',
+        output_rel_path='output/buffer60_match70_high',
         model_rel_path='models/player_detection_best.pt',
         tracker_yaml_rel_path='src/tracker/botsort.yaml',
         team_id="16",
@@ -28,20 +29,34 @@ def main():
     gc.collect()
     torch.cuda.empty_cache()
 
-    # 2. ISTANZIA LE CLASSI
+    # Classi per le tracking
     tracker = SoccerTracker(config)
     visualizer = TrackingVisualizer(config)
+    
 
-    # 3. SCELTA OPERAZIONE
+    # 3. Tracking
     # Esempio A: Esegui su una singola sequenza specifica e poi visualizza
     target_seq = "SNMOT-060"
-    
+
     # Step 3.1: Tracking
     txt_output = tracker.run_on_sequence(target_seq)
     
     # Step 3.2: Visualizzazione (solo se il tracking è andato a buon fine)
     if txt_output:
         visualizer.create_video(target_seq, tracking_file=txt_output)
+    
+    # Step 4: Analisi comportamento
+    analyzer = BehaviorAnalyzer(
+        config_json_path=os.path.join(current_dir, 'configs/roi_config.json'),
+        tracking_file_path="output\\buffer60_match70_high\\tracking_SNMOT-060_16.txt", # txt_output
+        output_folder=config.output_dir,
+        team_id=config.team_id
+    )
+    
+    analyzer.run_analysis()
+    analyzer.create_video_overlay(
+        images_folder=os.path.join(config.dataset_dir, target_seq, 'img1')
+    )
 
     # Esempio B: Esegui su TUTTE le sequenze (commenta la parte sopra e usa questa)
     # tracker.run_all()
