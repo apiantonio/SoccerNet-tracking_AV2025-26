@@ -1,8 +1,7 @@
 import os
 import glob
 from ultralytics import YOLO
-from src.tracker_config import TrackerConfig
-
+from tracker_config import TrackerConfig
 
 class SoccerTracker:
     """Classe per il tracking di oggetti in immagini di calcio."""    
@@ -31,6 +30,7 @@ class SoccerTracker:
         print(f"🚀 Avvio Tracking su: {sequence_name}")
         print(f"💾 Output sarà salvato in: {output_path}")
 
+        start_time = os.times()
         results = self.model.track(
             source=img_dir,
             persist=True,
@@ -38,9 +38,13 @@ class SoccerTracker:
             conf=self.cfg.conf_thresh,
             imgsz=self.cfg.img_size,
             classes=self.cfg.classes,
-            verbose=False,
-            device=0 # Cambia in 'cpu' se non hai GPU
+            verbose=True, #True per debug
+            device=0, # Cambia in 'cpu' se non hai GPU
+            half=True # True se vuoi usare FP16 (più veloce ma meno preciso
         )
+        end_time = os.times()
+        elapsed_time = end_time.elapsed - start_time.elapsed
+        print(f"⏱️ Tempo di elaborazione: {elapsed_time:.2f} secondi")
 
         self._write_results(results, output_path)
         return output_path
@@ -55,7 +59,7 @@ class SoccerTracker:
                     break
 
                 frame_id = frame_idx + 1 # MOT format start from 1
-
+                
                 if r.boxes.id is not None:
                     boxes = r.boxes.xyxy.cpu().numpy()
                     ids = r.boxes.id.int().cpu().numpy()
