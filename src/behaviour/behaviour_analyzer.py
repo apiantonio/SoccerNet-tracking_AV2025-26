@@ -12,7 +12,7 @@ class BehaviorAnalyzer:
         self.img_height = 1080
         
         # Carica le ROI
-        print(f"📖 Caricamento configurazione ROI da: {self.roi_path}")
+        print(f"\n📖 Caricamento configurazione ROI da: {self.roi_path}")
         with open(self.roi_path, 'r') as f:
             self.roi_data = json.load(f)
         

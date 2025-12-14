@@ -1,0 +1,50 @@
+{
+    "meta": {
+        "timestamp": "20251214_202546",
+        "tracker_config_name": "configs/botsort.yaml",
+        "team_id": "16"
+    },
+    "configuration": {
+        "paths": {
+            "input_folder": "tracking/train",
+            "output_folder": "output/buff60_sparseOptFlow_1024",
+            "detection_model": "models/player_detection_best.pt",
+            "reid_model": "osnet_x0_25_msmt17.pt",
+            "tracker_config": "configs/botsort.yaml",
+            "roi_config": "configs/roi_config.json"
+        },
+        "settings": {
+            "team_id": "16",
+            "sequences": [
+                "SNMOT-060"
+            ]
+        },
+        "tracker": {
+            "imgsz": 1024,
+            "conf": 0.25,
+            "device": 0,
+            "half": false,
+            "classes": [
+                1,
+                2,
+                3
+            ],
+            "verbose": false
+        },
+        "behavior": null
+    },
+    "metrics_overall": {
+        "HOTA_05": 0.7270345969446111,
+        "nMAE": 0.0,
+        "PTBS": 0.7270345969446111
+    },
+    "metrics_per_sequence": [
+        {
+            "seq": "SNMOT-060",
+            "hota": 0.7270345969446111,
+            "deta": 0.8651533480395645,
+            "assa": 0.6109660285684297,
+            "nmae": 0.0
+        }
+    ]
+}

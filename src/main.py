@@ -25,6 +25,12 @@ def finalize_arguments(args, cfg):
         cfg['paths']['roi_config'] = args.roi_config
     if args.imgsz:
         cfg['tracker']['imgsz'] = args.imgsz
+    if args.reid is not None:
+        cfg['tracker']['use_reid'] = args.reid
+    if args.half is not None:
+        cfg['tracker']['half'] = args.half
+    if args.verbose:
+        cfg['tracker']['verbose'] = True
         
     return cfg
 
@@ -55,7 +61,9 @@ def main():
     parser.add_argument('--tracker_config', type=str, help='Path al file di configurazione del tracker (opzionale sovrascrittura)')
     parser.add_argument('--roi_config', type=str, help='Path al file di configurazione delle ROI (opzionale sovrascrittura)')
     parser.add_argument('--imgsz', type=int, help='Sovrascrivi la risoluzione di input del tracker (es. 640, 960, 1088, 1280)')
-
+    parser.add_argument('--reid', help='Sovrascrivi il modello ReID del tracker (se supportato)', action='store_true', default=None)
+    parser.add_argument('-hp', '--fp16', '--half', dest='half', help='Usa FP16 per il tracking (se supportato)', action='store_true', default=None)
+    parser.add_argument('-v', '--verbose', action='store_true', help='Abilita output verboso per il tracker', default=False)
 
     args = parser.parse_args()     # Parsing argomenti da linea di comando
     cfg = load_config(args.config) # Caricamento config principale
@@ -94,8 +102,8 @@ def main():
 
     # --- FASE 3: EVALUATION ---
     if 'all' in args.step or 'eval' in args.step:
-        print("\n📊 Avvio Valutazione (HOTA)...")
         evaluator = Evaluator(cfg)
+        print("\n📊 Avvio Valutazione (HOTA)...")
         try:
             evaluator.evaluate(sequences)
         except Exception as e:

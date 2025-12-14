@@ -11,12 +11,12 @@ settings:
   sequences: ["SNMOT-060"]             # Lista di default (o "all")
 
 tracker:
-  imgsz: 1088        # Risoluzione input modello detection
-  conf: 0.25         # Confidenza minima detection
+  imgsz: 1088        # Risoluzione input modello detection (deve essere multiplo di 32)
+  conf: 0.25         # Confidenza minima detection (default 0.25)
   device: 0          # GPU ID
-  half: false        # FP16 mode (risparmia 50% VRAM)
+  half: False        # FP16 mode (risparmia 50% VRAM)
   classes: [1, 2, 3] # Classi: 0=ball, 1=gk, 2=player, 3=ref
-  verbose: false     # Stampa info dettagliate durante il tracking
+  verbose: False     # Stampa info dettagliate durante il tracking
 
 behavior:
   # TODO: parametri per l'analisi del comportamento

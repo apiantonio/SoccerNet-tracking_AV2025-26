@@ -2,6 +2,8 @@ import os
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 from collections import Counter
+from datetime import datetime
+import json
 
 class Evaluator:
     def __init__(self, config):
@@ -125,6 +127,101 @@ class Evaluator:
                     except ValueError:
                         continue 
         return np.array(data) if len(data) > 0 else np.empty((0, 6))
+    
+    def _save_results_json(self, results_list, avg_hota, avg_nmae):
+        """
+        Salva un file JSON completo con Configurazione + Risultati.
+        Questo file è perfetto per essere parsato automaticamente da script futuri.
+        """
+        # Nome del file univoco basato su timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        # Nome file es: results_20231025_143000.json
+        filename = f"results_{timestamp}.json"
+        save_path = os.path.join(self.output_folder, filename)
+        
+        # 2. Preparazione dei dati (Conversione tipi numpy in python native)
+        # Calcolo PTBS (Somma HOTA + nMAE normalizzato, qui semplificato)
+        ptbs = avg_hota + avg_nmae 
+
+        structured_data = {
+            "meta": {
+                "timestamp": timestamp,
+                "tracker_config_name": self.config['paths']['tracker_config'],
+                "team_id": self.team_id
+            },
+            # Salviamo l'intera configurazione usata per questo run
+            "configuration": self.config,
+            
+            # Metriche globali (facili da ordinare per trovare il migliore)
+            "metrics_overall": {
+                "HOTA_05": float(avg_hota),
+                "nMAE": float(avg_nmae),
+                "PTBS": float(ptbs)
+            },
+            
+            # Metriche per singola sequenza
+            "metrics_per_sequence": []
+        }
+
+        # Pulizia dati sequenze (conversione da numpy a float standard)
+        for res in results_list:
+            clean_res = {
+                "seq": res['seq'],
+                "hota": float(res['hota']),
+                "deta": float(res['deta']),
+                "assa": float(res['assa']),
+                "nmae": float(res['nmae'])
+            }
+            structured_data["metrics_per_sequence"].append(clean_res)
+
+        # 3. Scrittura su disco
+        try:
+            with open(save_path, 'w') as f:
+                json.dump(structured_data, f, indent=4)
+            print(f"💾 Report JSON strutturato salvato in: {save_path}")
+        except Exception as e:
+            print(f"⚠️ Errore salvataggio JSON: {e}")
+
+    def _save_eval_results_in_track_cfg(self, results_list, avg_hota, avg_nmae):
+        """
+        Aggiunge i risultati di valutazione in coda al file di config del tracker.
+        results_list: lista di dizionari {'seq': name, 'hota': val, ...}
+        """
+        # 1. Troviamo il nome del file config del tracker
+        tracker_cfg_name = os.path.basename(self.config['paths']['tracker_config'])
+        # 2. Costruiamo il percorso nella cartella output
+        saved_cfg_path = os.path.join(self.output_folder, tracker_cfg_name)
+
+        if os.path.exists(saved_cfg_path):
+            try:
+                with open(saved_cfg_path, 'a') as f:
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    f.write("\n\n# " + "=" * 79 + "\n")
+                    f.write(f"# VALUTAZIONE AUTOMATICA - {timestamp}\n")
+                    f.write(f'# imgsz: {self.config["tracker"]["imgsz"]}, device: {self.config["tracker"]["device"]}, half: {self.config["tracker"].get("half", False)}')
+                    f.write(f"# " + "-" * 79 + "\n")
+                    f.write(f"# {'SEQUENCE':<20} | {'HOTA(0.5)':<10} | {'DetA':<10} | {'AssA':<10} | {'nMAE':<10}\n")
+                    f.write(f"# {'-' * 79}\n")
+                    
+                    # Scriviamo ogni singola sequenza
+                    for res in results_list:
+                        s_name = res['seq']
+                        h = res['hota'] * 100
+                        d = res['deta'] * 100
+                        a = res['assa'] * 100
+                        nm = res['nmae'] # Assumiamo sia già formattato o float
+                        
+                        f.write(f"# {s_name:<20} | {h:6.2f} %   | {d:6.2f} %   | {a:6.2f} %   | {nm} (TBD)\n")
+                    
+                    f.write(f"# {'-' * 79}\n")
+                    f.write(f"# {'MEAN SCORES':<20} | {avg_hota * 100:6.2f} %   | {'-':<10} | {'-':<10} | {avg_nmae:<10}\n")
+                    f.write("# " + "=" * 80 + "\n")
+                
+                print(f"📝 Report completo aggiunto a: {saved_cfg_path}")
+            except Exception as e:
+                print(f"⚠️ Errore scrittura metriche su file config: {e}")
+        else:
+            print(f"ℹ️ File config tracker non trovato in output ({saved_cfg_path}). Nessun log scritto.")
 
     def _compute_nmae(self, seq):
         """
@@ -144,12 +241,12 @@ class Evaluator:
         print(f"{'SEQUENCE':<20} | {'HOTA(0.5)':<10} | {'DetA':<10} | {'AssA':<10} | {'nMAE':<10}")
         print("-" * 80)
         
-        hota_scores = []
-        nmae_scores = [] # Futuro uso
+        sequence_results = [] # Lista per accumulare i dati di ogni sequenza
+        hota_values = []
+        nmae_values = []
 
         for seq in sequences:
             # 1. Definizione Percorsi
-            # Assumiamo che il GT sia nella cartella input/SNMOT-XXX/gt/gt.txt
             gt_path = os.path.join(self.input_folder, seq, 'gt', 'gt.txt')
             pred_path = os.path.join(self.output_folder, f"tracking_{seq}_{self.team_id}.txt")
 
@@ -166,21 +263,35 @@ class Evaluator:
             pred_data = self._load_txt(pred_path)
             
             hota, deta, assa = self._compute_hota_05(gt_data, pred_data)
-            hota_scores.append(hota)
-
+            
             # 3. Behaviour Eval (nMAE) - Placeholder
             nmae = self._compute_nmae(seq)
-            nmae_scores.append(nmae)
 
-            # Stampa riga
+            # Accumulo valori per le medie
+            hota_values.append(hota)
+            nmae_values.append(nmae)
+
+            # Accumulo dati per il report finale
+            sequence_results.append({
+                'seq': seq,
+                'hota': hota,
+                'deta': deta,
+                'assa': assa,
+                'nmae': nmae
+            })
+
+            # Stampa riga a console
             print(f"{seq:<20} | {hota*100:6.2f} %   | {deta*100:6.2f} %   | {assa*100:6.2f} %   | {nmae} (TBD)")
 
         print("-" * 80)
         
-        avg_hota = np.mean(hota_scores) if hota_scores else 0.0
-        avg_nmae = np.mean(nmae_scores) if nmae_scores else 0.0
+        avg_hota = np.mean(hota_values) if hota_values else 0.0
+        avg_nmae = np.mean(nmae_values) if nmae_values else 0.0
         
-        # PTBS = HOTA + nMAE (Nota: nMAE deve essere normalizzato prima della somma)
-        # Per ora stampiamo solo HOTA medio
-        print(f"{'MEAN SCORES':<20} | {avg_hota * 100:6.2f} %   | {'-':<10} | {'-':<10} | {'-':<10}")
+        print(f"{'MEAN SCORES':<20} | {avg_hota * 100:6.2f} %   | {'-':<10} | {'-':<10} | {avg_nmae:<10}")
         print("="*80 + "\n")
+        
+        # Salvataggio risultati COMPLETI in coda al file di config del tracker
+        if sequence_results:
+            self._save_eval_results_in_track_cfg(sequence_results, avg_hota, avg_nmae)
+            self._save_results_json(sequence_results, avg_hota, avg_nmae)
