@@ -1,9 +1,9 @@
 paths:
   input_folder: "tracking/train"       # Root delle sequenze (dove ci sono SNMOT-xxx)
-  output_folder: "output/buff90_"              # Dove salvare i risultati
+  output_folder: "output/"              # Dove salvare i risultati
   detection_model: "models/player_detection_best.pt"
   reid_model: "osnet_x0_25_msmt17.pt"  # Modello ReID leggero
-  tracker_config: "configs\\botsort.yaml"
+  tracker_config: "configs/botsort.yaml"
   roi_config: "configs/roi_config.json" # Il file con le coordinate delle aree
 
 settings:

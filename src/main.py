@@ -13,6 +13,21 @@ def load_config(path):
     with open(path, 'r') as f:
         return yaml.safe_load(f)
 
+def finalize_arguments(args, cfg):
+    """Sovrascrivi gli argomenti nel file di config con quelli passati da linea di comando (se presenti)"""
+    if args.tracker_config:
+        cfg['paths']['tracker_config'] = args.tracker_config 
+    if args.input_folder:
+        cfg['paths']['input_folder'] = args.input_folder
+    if args.output_folder:
+        cfg['paths']['output_folder'] = args.output_folder
+    if args.roi_config:
+        cfg['paths']['roi_config'] = args.roi_config
+    if args.imgsz:
+        cfg['tracker']['imgsz'] = args.imgsz
+        
+    return cfg
+
 def main():
     """
     Main function per eseguire la pipeline SoccerNet.
@@ -25,23 +40,28 @@ def main():
         - all: esegue tutta la pipeline (default)
         
     Esempio di esecuzione:
-        python src/main.py --config config/main_config.yaml --step all --seq SNMOT-060 SNMOT-061
-    Solo tracking:
-        python src/main.py --config config/main_config.yaml --step tracking --seq SNMOT-060
-    Behaiour e visualizer:
-        python src/main.py --config config/main_config.yaml --step behaviour visualizer --seq SNMOT-060
+        python src/main.py --config configs/main_config.yaml --step all --seq SNMOT-060 SNMOT-061 --input_folder data/input --output_folder data/output
     """
     parser = argparse.ArgumentParser(description="SoccerNet Pipeline")
-    parser.add_argument('--config', type=str, default='configs/main_config.yaml', help='Path al file config')
-    parser.add_argument('--step', type=str, nargs='+', default=['all'], 
+    parser.add_argument('-c', '--config', type=str, default='configs/main_config.yaml', help='Path al file config')
+    parser.add_argument('-s','--step', type=str, nargs='+', default=['all'], 
                         choices=['tracking', 'behaviour', 'visualizer', 'eval', 'all'], 
                         help='Step da eseguire. Puoi indicarne più di uno (es: --step behaviour visualizer)')
     parser.add_argument('--seq', type=str, nargs='+', help='Lista sequenze (es. SNMOT-060).')
-
-    args = parser.parse_args()
-    cfg = load_config(args.config)
     
-    # Determina sequenze
+    # Argomenti opzionali per sovrascrivere i path nel file di config
+    parser.add_argument('-i', '--input_folder', type=str, help='Sovrascrivi cartella input dal config')
+    parser.add_argument('-o', '--output_folder', type=str, help='Sovrascrivi cartella output dal config')
+    parser.add_argument('--tracker_config', type=str, help='Path al file di configurazione del tracker (opzionale sovrascrittura)')
+    parser.add_argument('--roi_config', type=str, help='Path al file di configurazione delle ROI (opzionale sovrascrittura)')
+    parser.add_argument('--imgsz', type=int, help='Sovrascrivi la risoluzione di input del tracker (es. 640, 960, 1088, 1280)')
+
+
+    args = parser.parse_args()     # Parsing argomenti da linea di comando
+    cfg = load_config(args.config) # Caricamento config principale
+    
+    cfg = finalize_arguments(args, cfg) # Sovrascrivi config con argomenti da linea di comando se presenti
+    
     if args.seq:
         sequences = args.seq
     elif cfg['settings'].get('sequences'): # se sequence non è definito negli argomenti, controlla nel file di config

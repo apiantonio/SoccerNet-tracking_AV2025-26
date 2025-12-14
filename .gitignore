@@ -20,4 +20,5 @@ venv/
 .idea/
 
 # --- Modelli Salvati ---
-models/
+models/*.pt
+models/*.pth
