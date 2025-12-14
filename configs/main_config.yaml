@@ -1,0 +1,22 @@
+paths:
+  input_folder: "tracking/train"       # Root delle sequenze (dove ci sono SNMOT-xxx)
+  output_folder: "output/buff90_"              # Dove salvare i risultati
+  detection_model: "models/player_detection_best.pt"
+  reid_model: "osnet_x0_25_msmt17.pt"  # Modello ReID leggero
+  tracker_config: "configs\\botsort.yaml"
+  roi_config: "configs/roi_config.json" # Il file con le coordinate delle aree
+
+settings:
+  team_id: "16"                        # Il tuo ID team per il nome file (es. _16.txt)
+  sequences: ["SNMOT-060"]             # Lista di default (o "all")
+
+tracker:
+  imgsz: 1088        # Risoluzione input modello detection
+  conf: 0.25         # Confidenza minima detection
+  device: 0          # GPU ID
+  half: false        # FP16 mode (risparmia 50% VRAM)
+  classes: [1, 2, 3] # Classi: 0=ball, 1=gk, 2=player, 3=ref
+  verbose: false     # Stampa info dettagliate durante il tracking
+
+behavior:
+  # TODO: parametri per l'analisi del comportamento

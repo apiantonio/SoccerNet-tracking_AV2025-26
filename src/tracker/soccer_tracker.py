@@ -1,94 +1,79 @@
 import os
-import glob
+import torch
+import gc
 from ultralytics import YOLO
-from tracker_config import TrackerConfig
 
 class SoccerTracker:
-    """Classe per il tracking di oggetti in immagini di calcio."""    
-    
-    def __init__(self, config: TrackerConfig):
-        self.cfg = config
-        print(f"🔄 Caricamento modello da: {self.cfg.model_path}")
-        self.model = YOLO(self.cfg.model_path)
-
-    def run_on_sequence(self, sequence_name):
+    def __init__(self, config):
         """
-        Esegue il tracking su una specifica cartella (es. SNMOT-060)
+        Inizializza il tracker leggendo i parametri dal config.
+        config: dizionario caricato da main_config.yaml
         """
-        sequence_path = os.path.join(self.cfg.dataset_dir, sequence_name)
-        img_dir = os.path.join(sequence_path, 'img1')
+        self.config = config
         
-        if not os.path.exists(img_dir):
-            print(f"⚠️ Cartella immagini non trovata: {img_dir}")
-            return None
+        self.model_path = config['paths']['detection_model']
+        self.tracker_cfg_path = config['paths']['tracker_config']
+        self.device = config['tracker']['device']
+        self.classes = config['tracker'].get('classes', [1,2,3])  # Default: traccia portieri(1) e giocatori(2) e arbitri(3)
+        self.verbose = config['tracker'].get('verbose', False)
+        
+        # Parametri per ottimizzazione memoria
+        self.imgsz = config['tracker'].get('imgsz', 960)
+        self.half = config['tracker'].get('half', True)
+    
+        print(f"🔄 Caricamento Modello YOLO: {self.model_path}")
+        self.model = YOLO(self.model_path)
 
-        # Nome file output conforme al PDF (tracking_K_XX.txt)
-        # Qui usiamo il nome sequenza, rinominare se necessario k=1,2,3
-        output_filename = f"tracking_{sequence_name}_{self.cfg.team_id}.txt"
-        output_path = os.path.join(self.cfg.output_dir, output_filename)
+    def track_sequence(self, sequence_name):
+        """
+        Esegue il tracking su una specifica sequenza (es. SNMOT-060)
+        """
+        # Costruisci i percorsi dinamicamente
+        source_path = os.path.join(self.config['paths']['input_folder'], sequence_name, "img1")
+        output_dir = self.config['paths']['output_folder']
+        os.makedirs(output_dir, exist_ok=True)
+        
+        output_filename = f"tracking_{sequence_name}_{self.config['settings']['team_id']}.txt"
+        output_path = os.path.join(output_dir, output_filename)
 
-        print(f"🚀 Avvio Tracking su: {sequence_name}")
-        print(f"💾 Output sarà salvato in: {output_path}")
+        print(f"🚀 Avvio Tracking: {sequence_name} | Risoluzione: {self.imgsz}")
 
-        start_time = os.times()
+        # PULIZIA MEMORIA PRIMA DI INIZIARE
+        gc.collect()
+        torch.cuda.empty_cache()
+
+        # Esecuzione Tracker
         results = self.model.track(
-            source=img_dir,
+            source=source_path,
             persist=True,
-            tracker=self.cfg.tracker_config,
-            conf=self.cfg.conf_thresh,
-            imgsz=self.cfg.img_size,
-            classes=self.cfg.classes,
-            verbose=True, #True per debug
-            device=0, # Cambia in 'cpu' se non hai GPU
-            half=True # True se vuoi usare FP16 (più veloce ma meno preciso
+            tracker=self.tracker_cfg_path,
+            imgsz=self.imgsz,
+            half=self.half,
+            device=self.device,
+            classes=self.classes, #  0:ball, 1:gk, 2:player, 3:ref
+            verbose=self.verbose,
+            stream=True,     # Stream è fondamentale per non saturare la RAM
         )
-        end_time = os.times()
-        elapsed_time = end_time.elapsed - start_time.elapsed
-        print(f"⏱️ Tempo di elaborazione: {elapsed_time:.2f} secondi")
 
-        self._write_results(results, output_path)
-        return output_path
-
-    def _write_results(self, results, output_path):
+        # Scrittura Output
         with open(output_path, 'w') as f:
             for frame_idx, r in enumerate(results):
+                if r.boxes is None or r.boxes.id is None:
+                    continue
                 
-                # Check limite frame per test
-                if self.cfg.limit_frames and frame_idx >= self.cfg.limit_frames:
-                    print(f"🛑 Stop manuale al frame {frame_idx}")
-                    break
-
-                frame_id = frame_idx + 1 # MOT format start from 1
+                boxes = r.boxes.xywh.cpu().numpy()
+                track_ids = r.boxes.id.cpu().numpy()
                 
-                if r.boxes.id is not None:
-                    boxes = r.boxes.xyxy.cpu().numpy()
-                    ids = r.boxes.id.int().cpu().numpy()
+                # Scriviamo nel formato richiesto: frame,id,x,y,w,h
+                for box, track_id in zip(boxes, track_ids):
+                    x, y, w, h = box
+                    # Converti da centro (xywh) a top-left (xywh)
+                    x1 = x - (w / 2)
+                    y1 = y - (h / 2)
                     
-                    for box, track_id in zip(boxes, ids):
-                        x1, y1, x2, y2 = box
-                        
-                        # Conversione in formato MOT (top_left_x, top_left_y, w, h)
-                        tl_x = int(x1)
-                        tl_y = int(y1)
-                        w = int(x2 - x1)
-                        h = int(y2 - y1)
-                        
-                        # Scrittura: frame, id, x, y, w, h
-                        line = f"{frame_id},{track_id},{tl_x},{tl_y},{w},{h}\n"
-                        f.write(line)
+                    f.write(f"{frame_idx + 1},{int(track_id)},{int(x1)},{int(y1)},{int(w)},{int(h)}\n")
         
-        print(f"✅ Tracking completato per {os.path.basename(output_path)}")
-
-    def run_all(self):
-        """Esegue il tracking su tutte le cartelle SNMOT-* trovate"""
-        sequences = sorted(glob.glob(os.path.join(self.cfg.dataset_dir, 'SNMOT-*')))
-        if not sequences:
-            print(f"❌ Nessuna sequenza trovata in {self.cfg.dataset_dir}")
-            return
-
-        print(f"📋 Trovate {len(sequences)} sequenze.")
-        for seq_path in sequences:
-            seq_name = os.path.basename(seq_path)
-            self.run_on_sequence(seq_name)
-            # Reset modello per pulire la memoria dei track ID tra video
-            self.model = YOLO(self.cfg.model_path)
+        print(f"💾 Salvato: {output_path}")
+        
+        torch.cuda.empty_cache()
+        return output_path

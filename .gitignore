@@ -4,6 +4,9 @@ tracking/train/
 tracking/test/
 tracking/challenge/
 
+# --- Output video di Esecuzioni ---
+outputs/*.mp4
+outputs/*.avi
 
 # --- Python Cache e Ambienti Virtuali ---
 __pycache__/
