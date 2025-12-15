@@ -4,6 +4,7 @@ from scipy.optimize import linear_sum_assignment
 from collections import Counter
 from datetime import datetime
 import json
+import yaml
 
 class Evaluator:
     def __init__(self, config):
@@ -128,57 +129,71 @@ class Evaluator:
                         continue 
         return np.array(data) if len(data) > 0 else np.empty((0, 6))
     
-    def _save_results_json(self, results_list, avg_hota, avg_nmae):
+    def _save_structured_json(self, results_list, avg_hota, avg_nmae):
         """
-        Salva un file JSON completo con Configurazione + Risultati.
-        Questo file è perfetto per essere parsato automaticamente da script futuri.
+        Salva un file JSON completo con Configurazione Pipeline + Configurazione Tracker (effettiva) + Risultati.
         """
-        # Nome del file univoco basato su timestamp
+        # 1. Nome del file univoco
+        tracker_cfg_path = self.config['paths']['tracker_config']
+        tracker_cfg_name = os.path.basename(tracker_cfg_path).replace('.yaml', '')
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        # Nome file es: results_20231025_143000.json
-        filename = f"results_{timestamp}.json"
-        save_path = os.path.join(self.output_folder, filename)
         
-        # 2. Preparazione dei dati (Conversione tipi numpy in python native)
-        # Calcolo PTBS (Somma HOTA + nMAE normalizzato, qui semplificato)
+        filename = f"results_{tracker_cfg_name}_{timestamp}.json"
+        save_path = os.path.join(self.output_folder, filename)
+
+        # 2. Costruzione della configurazione effettiva del Tracker
+        # A. Leggiamo i parametri dell'algoritmo dal file
+        tracker_effective_config = {}
+        if os.path.exists(tracker_cfg_path):
+            try:
+                with open(tracker_cfg_path, 'r') as f:
+                    tracker_effective_config = yaml.safe_load(f) or {}
+            except Exception as e:
+                print(f"⚠️ Errore lettura config tracker ({tracker_cfg_path}): {e}")
+                tracker_effective_config = {"error": "Could not read tracker config file"}
+        
+        # 3. Preparazione dei dati finali
         ptbs = avg_hota + avg_nmae 
 
         structured_data = {
             "meta": {
                 "timestamp": timestamp,
-                "tracker_config_name": self.config['paths']['tracker_config'],
+                "tracker_config_name": tracker_cfg_name,
                 "team_id": self.team_id
             },
-            # Salviamo l'intera configurazione usata per questo run
-            "configuration": self.config,
             
-            # Metriche globali (facili da ordinare per trovare il migliore)
+            # A. Configurazione generale (i path, roi settings, etc.)
+            "main_config": self.config,
+            
+            # B. Configurazione Tracker COMPLETA (Algoritmo + Parametri Runtime)
+            "tracker_config": tracker_effective_config,
+            
+            # C. Risultati
             "metrics_overall": {
-                "HOTA_05": float(avg_hota),
-                "nMAE": float(avg_nmae),
-                "PTBS": float(ptbs)
+                "HOTA_05": round(float(avg_hota), 4),
+                "nMAE": round(float(avg_nmae), 4),
+                "PTBS": round(float(ptbs), 4)
             },
             
-            # Metriche per singola sequenza
             "metrics_per_sequence": []
         }
 
-        # Pulizia dati sequenze (conversione da numpy a float standard)
+        # Pulizia dati sequenze
         for res in results_list:
             clean_res = {
                 "seq": res['seq'],
-                "hota": float(res['hota']),
-                "deta": float(res['deta']),
-                "assa": float(res['assa']),
-                "nmae": float(res['nmae'])
+                "hota": round(float(res['hota']), 4),
+                "deta": round(float(res['deta']), 4),
+                "assa": round(float(res['assa']), 4),
+                "nmae": round(float(res['nmae']), 4)
             }
             structured_data["metrics_per_sequence"].append(clean_res)
 
-        # 3. Scrittura su disco
+        # 4. Scrittura su disco
         try:
             with open(save_path, 'w') as f:
                 json.dump(structured_data, f, indent=4)
-            print(f"💾 Report JSON strutturato salvato in: {save_path}")
+            print(f"💾 Report JSON strutturato (effettivo) salvato in: {save_path}")
         except Exception as e:
             print(f"⚠️ Errore salvataggio JSON: {e}")
 
@@ -294,4 +309,4 @@ class Evaluator:
         # Salvataggio risultati COMPLETI in coda al file di config del tracker
         if sequence_results:
             self._save_eval_results_in_track_cfg(sequence_results, avg_hota, avg_nmae)
-            self._save_results_json(sequence_results, avg_hota, avg_nmae)
+            self._save_structured_json(sequence_results, avg_hota, avg_nmae)
