@@ -128,14 +128,129 @@ class Evaluator:
                     except ValueError:
                         continue 
         return np.array(data) if len(data) > 0 else np.empty((0, 6))
+
+    def _load_behavior_file(self, path):
+        """
+        Carica il file behavior in un dizionario per accesso rapido.
+        Return: dict {(frame_id, region_id): n_players}
+        """
+        data = {}
+        if not os.path.exists(path):
+            return data
+            
+        with open(path, 'r') as f:
+            for line in f:
+                parts = line.strip().split(',')
+                if len(parts) >= 3:
+                    try:
+                        frame_id = int(parts[0])
+                        region_id = int(parts[1])
+                        count = int(parts[2])
+                        data[(frame_id, region_id)] = count
+                    except ValueError:
+                        continue
+        return data
+
+    def _generate_missing_behavior_gt(self, seq, gt_tracking_path):
+        """
+        Genera il file GT del behavior partendo dal GT del tracking se non esiste.
+        Logica: un giocatore è nella ROI se il centro della base della bbox è dentro il rettangolo.
+        """
+        gt_behavior_path = os.path.join(self.input_folder, seq, 'gt', 'behavior_gt.txt')
+        
+        # Se esiste già, lo usiamo direttamente
+        if os.path.exists(gt_behavior_path):
+            return gt_behavior_path
+
+        print(f"⚠️ Behavior GT mancante per {seq}. Generazione automatica in corso...")
+        
+        # 1. Recupero configurazione ROI
+        roi_config_path = self.config['paths'].get('roi_config')
+        if not roi_config_path or not os.path.exists(roi_config_path):
+            # Fallback: prova a cercarlo nella cartella configs standard
+            roi_config_path = os.path.join(os.getcwd(), 'configs', 'roi_config.json')
+            
+        if not os.path.exists(roi_config_path):
+            print(f"❌ Configurazione ROI non trovata ({roi_config_path}). Impossibile generare GT.")
+            return None
+
+        with open(roi_config_path, 'r') as f:
+            roi_data = json.load(f)
+
+        # Risoluzione standard dataset SoccerNet
+        IMG_W, IMG_H = 1920.0, 1080.0 
+
+        # Helper: da relative (0-1) ad assolute (pixel)
+        def get_abs_roi(r):
+            return (r['x'] * IMG_W, r['y'] * IMG_H, 
+                    (r['x'] + r['width']) * IMG_W, (r['y'] + r['height']) * IMG_H)
+
+        roi1 = get_abs_roi(roi_data['roi1'])
+        roi2 = get_abs_roi(roi_data['roi2'])
+
+        # 2. Caricamento Tracking GT
+        try:
+            # Formato gt.txt: frame, id, x, y, w, h
+            data = np.loadtxt(gt_tracking_path, delimiter=',')
+        except Exception:
+            return None
+
+        if len(data) == 0:
+            return None
+
+        data = data.astype(float)
+        unique_frames = np.unique(data[:, 0]).astype(int)
+        
+        lines_to_write = []
+        
+        # 3. Calcolo presenze per ogni frame
+        for frame_idx in unique_frames:
+            current_dets = data[data[:, 0] == frame_idx]
+            
+            c1, c2 = 0, 0
+            for det in current_dets:
+                # x, y, w, h sono agli indici 2, 3, 4, 5
+                x, y, w, h = det[2], det[3], det[4], det[5]
+                
+                # Calcolo "Center of Basis"
+                cx = x + w / 2.0
+                cy = y + h
+                
+                # Check ROI 1
+                if roi1[0] <= cx <= roi1[2] and roi1[1] <= cy <= roi1[3]:
+                    c1 += 1
+                
+                # Check ROI 2
+                if roi2[0] <= cx <= roi2[2] and roi2[1] <= cy <= roi2[3]:
+                    c2 += 1
+            
+            # Formato output: frame_id, region_id, n_players
+            lines_to_write.append(f"{frame_idx},1,{c1}\n")
+            lines_to_write.append(f"{frame_idx},2,{c2}\n")
+
+        # 4. Salvataggio su disco
+        try:
+            os.makedirs(os.path.dirname(gt_behavior_path), exist_ok=True)
+            with open(gt_behavior_path, 'w') as f:
+                f.writelines(lines_to_write)
+            print(f"✅ Behavior GT generato: {gt_behavior_path}")
+            return gt_behavior_path
+        except Exception as e:
+            print(f"❌ Errore salvataggio GT behavior: {e}")
+            return None
     
-    def _save_structured_json(self, results_list, avg_hota, avg_nmae):
+def _save_structured_json(self, results_list, avg_hota, avg_nmae):
         """
         Salva un file JSON completo con Configurazione Pipeline + Configurazione Tracker (effettiva) + Risultati.
         """
         # 1. Nome del file univoco
         tracker_cfg_path = self.config['paths']['tracker_config']
-        tracker_cfg_name = os.path.basename(tracker_cfg_path).replace('.yaml', '')
+        # Gestione robusta del nome file se path non esiste o è strano
+        if tracker_cfg_path:
+            tracker_cfg_name = os.path.basename(tracker_cfg_path).replace('.yaml', '')
+        else:
+            tracker_cfg_name = "unknown_tracker"
+            
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
         filename = f"results_{tracker_cfg_name}_{timestamp}.json"
@@ -144,16 +259,19 @@ class Evaluator:
         # 2. Costruzione della configurazione effettiva del Tracker
         # A. Leggiamo i parametri dell'algoritmo dal file
         tracker_effective_config = {}
-        if os.path.exists(tracker_cfg_path):
+        if tracker_cfg_path and os.path.exists(tracker_cfg_path):
             try:
                 with open(tracker_cfg_path, 'r') as f:
                     tracker_effective_config = yaml.safe_load(f) or {}
             except Exception as e:
                 print(f"⚠️ Errore lettura config tracker ({tracker_cfg_path}): {e}")
-                tracker_effective_config = {"error": "Could not read tracker config file"}
+                tracker_effective_config = {"error": f"Could not read tracker config file: {e}"}
         
         # 3. Preparazione dei dati finali
-        ptbs = avg_hota + avg_nmae 
+        # Assicuriamoci che siano float
+        avg_hota_flt = float(avg_hota)
+        avg_nmae_flt = float(avg_nmae)
+        ptbs = avg_hota_flt + avg_nmae_flt 
 
         structured_data = {
             "meta": {
@@ -170,9 +288,9 @@ class Evaluator:
             
             # C. Risultati
             "metrics_overall": {
-                "HOTA_05": round(float(avg_hota), 4),
-                "nMAE": round(float(avg_nmae), 4),
-                "PTBS": round(float(ptbs), 4)
+                "HOTA_05": round(avg_hota_flt, 4),
+                "nMAE": round(avg_nmae_flt, 4),
+                "PTBS": round(ptbs, 4)
             },
             
             "metrics_per_sequence": []
@@ -203,7 +321,8 @@ class Evaluator:
         results_list: lista di dizionari {'seq': name, 'hota': val, ...}
         """
         # 1. Troviamo il nome del file config del tracker
-        tracker_cfg_name = os.path.basename(self.config['paths']['tracker_config'])
+        tracker_cfg_path = self.config['paths']['tracker_config']
+        tracker_cfg_name = os.path.basename(tracker_cfg_path)
         # 2. Costruiamo il percorso nella cartella output
         saved_cfg_path = os.path.join(self.output_folder, tracker_cfg_name)
 
@@ -213,7 +332,9 @@ class Evaluator:
                     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     f.write("\n\n# " + "=" * 79 + "\n")
                     f.write(f"# VALUTAZIONE AUTOMATICA - {timestamp}\n")
-                    f.write(f'# imgsz: {self.config["tracker"]["imgsz"]}, device: {self.config["tracker"]["device"]}, half: {self.config["tracker"].get("half", False)}')
+                    # Recupera parametri tracker in modo sicuro
+                    tk_cfg = self.config.get("tracker", {})
+                    f.write(f'# imgsz: {tk_cfg.get("imgsz", "?")}, device: {tk_cfg.get("device", "?")}, half: {tk_cfg.get("half", False)}\n')
                     f.write(f"# " + "-" * 79 + "\n")
                     f.write(f"# {'SEQUENCE':<20} | {'HOTA(0.5)':<10} | {'DetA':<10} | {'AssA':<10} | {'nMAE':<10}\n")
                     f.write(f"# {'-' * 79}\n")
@@ -224,12 +345,14 @@ class Evaluator:
                         h = res['hota'] * 100
                         d = res['deta'] * 100
                         a = res['assa'] * 100
-                        nm = res['nmae'] # Assumiamo sia già formattato o float
+                        nm = res['nmae'] 
                         
-                        f.write(f"# {s_name:<20} | {h:6.2f} %   | {d:6.2f} %   | {a:6.2f} %   | {nm} (TBD)\n")
+                        # FORMATTAZIONE CORRETTA: nMAE con 4 decimali, rimosso (TBD)
+                        f.write(f"# {s_name:<20} | {h:6.2f} %   | {d:6.2f} %   | {a:6.2f} %   | {nm:.4f}\n")
                     
                     f.write(f"# {'-' * 79}\n")
-                    f.write(f"# {'MEAN SCORES':<20} | {avg_hota * 100:6.2f} %   | {'-':<10} | {'-':<10} | {avg_nmae:<10}\n")
+                    # FORMATTAZIONE CORRETTA MEAN SCORES
+                    f.write(f"# {'MEAN SCORES':<20} | {avg_hota * 100:6.2f} %   | {'-':<10} | {'-':<10} | {avg_nmae:.4f}\n")
                     f.write("# " + "=" * 80 + "\n")
                 
                 print(f"📝 Report completo aggiunto a: {saved_cfg_path}")
@@ -237,18 +360,61 @@ class Evaluator:
                 print(f"⚠️ Errore scrittura metriche su file config: {e}")
         else:
             print(f"ℹ️ File config tracker non trovato in output ({saved_cfg_path}). Nessun log scritto.")
-
-    def _compute_nmae(self, seq):
+            
+def _compute_nmae(self, seq):
         """
-        PLACEHOLDER: Calcolo nMAE per il behavior analysis.
-        Da implementare in futuro leggendo il GT behavior e il file output behavior.
+        Calcola nMAE per una sequenza.
+        Se manca il GT del behavior, prova a generarlo dal GT del tracking.
+        Formula: nMAE = (10 - min(10, MAE)) / 10
+        """
+        # Percorso GT tracking (necessario per generare il behavior se manca)
+        gt_tracking_path = os.path.join(self.input_folder, seq, 'gt', 'gt.txt')
         
-        TODO: Quando vorrai implementare il behavior scoring:
-              Implementa il metodo _compute_nmae(self, seq) in evaluator.py.
-              Dovrai caricare il file behavior_K_XX.txt e confrontarlo con un GT di behaviour (che dovrai avere o parsare dai dati XML/JSON del dataset).
-              Infine aggiorna la stampa finale per calcolare PTBS = HOTA + nMAE (ricordando la formula di normalizzazione del nMAE dalla slide 10).
-        """
-        return 0.0 # Ritorna 0.0 (Non Definito) per ora
+        # 1. Ottieni il path del GT behavior (generandolo se necessario)
+        gt_behavior_path = self._generate_missing_behavior_gt(seq, gt_tracking_path)
+        
+        # Percorso del file predizioni
+        pred_path = os.path.join(self.output_folder, f"behavior_{seq}_{self.team_id}.txt")
+
+        # Controlli esistenza file
+        if not gt_behavior_path or not os.path.exists(gt_behavior_path):
+            print(f"{seq:<20} | ⚠️ NO GT BEHAVIOR")
+            return 0.0
+            
+        if not os.path.exists(pred_path):
+            print(f"{seq:<20} | ⚠️ NO PRED BEHAVIOR")
+            return 0.0
+
+        # 2. Caricamento Dati
+        gt_data = self._load_behavior_file(gt_behavior_path)
+        pred_data = self._load_behavior_file(pred_path)
+        
+        if not gt_data:
+            return 0.0
+
+        total_abs_error = 0.0
+        n_samples = 0
+
+        # 3. Calcolo MAE
+        # Iteriamo su tutte le voci del GT
+        for key, gt_count in gt_data.items():
+            # key è (frame_id, region_id)
+            # Se manca la predizione per quel frame, assumiamo 0
+            pred_count = pred_data.get(key, 0)
+            
+            diff = abs(pred_count - gt_count)
+            total_abs_error += diff
+            n_samples += 1
+            
+        if n_samples == 0:
+            return 0.0
+            
+        mae = total_abs_error / n_samples
+        
+        # 4. Calcolo nMAE normalizzato
+        nmae = (10.0 - min(10.0, mae)) / 10.0
+        
+        return nmae
 
     def evaluate(self, sequences):
         """Esegue la pipeline di valutazione completa."""
@@ -302,11 +468,11 @@ class Evaluator:
         
         avg_hota = np.mean(hota_values) if hota_values else 0.0
         avg_nmae = np.mean(nmae_values) if nmae_values else 0.0
-        
-        print(f"{'MEAN SCORES':<20} | {avg_hota * 100:6.2f} %   | {'-':<10} | {'-':<10} | {avg_nmae:<10}")
+
+        print(f"{'MEAN SCORES':<20} | {avg_hota * 100:6.2f} %   | {'-':<10} | {'-':<10} | {avg_nmae:.4f}")
         print("="*80 + "\n")
         
-        # Salvataggio risultati COMPLETI in coda al file di config del tracker
+        # Salvataggio risultati
         if sequence_results:
             self._save_eval_results_in_track_cfg(sequence_results, avg_hota, avg_nmae)
             self._save_structured_json(sequence_results, avg_hota, avg_nmae)
