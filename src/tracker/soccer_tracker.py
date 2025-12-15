@@ -1,6 +1,7 @@
 import os
 import torch
 import gc
+import shutil
 from ultralytics import YOLO
 
 class SoccerTracker:
@@ -14,14 +15,15 @@ class SoccerTracker:
         self.model_path = config['paths']['detection_model']
         self.tracker_cfg_path = config['paths']['tracker_config']
         self.device = config['tracker']['device']
+        self.output_folder = config['paths']['output_folder']
         self.classes = config['tracker'].get('classes', [1,2,3])  # Default: traccia portieri(1) e giocatori(2) e arbitri(3)
         self.verbose = config['tracker'].get('verbose', False)
         
         # Parametri per ottimizzazione memoria
         self.imgsz = config['tracker'].get('imgsz', 960)
-        self.half = config['tracker'].get('half', True)
+        self.half = config['tracker'].get('half', False)
     
-        print(f"🔄 Caricamento Modello YOLO: {self.model_path}")
+        print(f"\n🔄 Caricamento Modello YOLO: {self.model_path}")
         self.model = YOLO(self.model_path)
 
     def track_sequence(self, sequence_name):
@@ -36,7 +38,7 @@ class SoccerTracker:
         output_filename = f"tracking_{sequence_name}_{self.config['settings']['team_id']}.txt"
         output_path = os.path.join(output_dir, output_filename)
 
-        print(f"🚀 Avvio Tracking: {sequence_name} | Risoluzione: {self.imgsz}")
+        print(f"🚀 Avvio Tracking: {sequence_name} | imgsz: {self.imgsz} | device: {self.device} | half-precision (FP16): {self.half} | verbose: {self.verbose}")
 
         # PULIZIA MEMORIA PRIMA DI INIZIARE
         gc.collect()
@@ -75,5 +77,21 @@ class SoccerTracker:
         
         print(f"💾 Salvato: {output_path}")
         
+        self._copy_tracker_config()
+        
         torch.cuda.empty_cache()
         return output_path
+    
+    def _copy_tracker_config(self):
+        """Copia il file di configurazione del tracker nella cartella di output per riferimento futuro."""
+        if os.path.exists(self.tracker_cfg_path):
+            cfg_filename = os.path.basename(self.tracker_cfg_path)
+            self.dst_cfg_path = os.path.join(self.output_folder, cfg_filename)
+            
+            try:
+                shutil.copy(self.tracker_cfg_path, self.dst_cfg_path)
+                print(f"📋 Copia configurazione Tracker salvata in: {self.dst_cfg_path}")
+            except Exception as e:
+                print(f"⚠️ Impossibile copiare il config del tracker: {e}")
+        else:
+            print(f"⚠️ File config tracker originale non trovato: {self.tracker_cfg_path}")
