@@ -83,6 +83,10 @@ def main():
     
     if args.seq:
         sequences = args.seq
+        if sequences == ['all']:
+            input_root = cfg['paths']['input_folder']
+            sequences = [d for d in os.listdir(input_root) if os.path.isdir(os.path.join(input_root, d))]
+            sequences = [s for s in sequences if s.startswith("SNMOT")]
     elif cfg['settings'].get('sequences'): # se sequence non è definito negli argomenti, controlla nel file di config
         sequences = cfg['settings']['sequences']
     else:

@@ -2,7 +2,7 @@ import os
 import torch
 import gc
 import time 
-import yaml
+import shutil
 from ultralytics import YOLO
 
 class SoccerTracker:
@@ -97,44 +97,15 @@ class SoccerTracker:
         return output_path
     
     def _copy_tracker_config(self):
-        """
-        Salva un file YAML nella cartella output che combina:
-        1. La configurazione dell'algoritmo (es. botsort.yaml)
-        2. I parametri di runtime sovrascritti da CLI (conf, iou, imgsz, ecc.)
-        """
+        """Copia il file di configurazione del tracker nella cartella di output per riferimento futuro."""
         if os.path.exists(self.tracker_cfg_path):
+            cfg_filename = os.path.basename(self.tracker_cfg_path)
+            self.dst_cfg_path = os.path.join(self.output_folder, cfg_filename)
+            
             try:
-                # 1. Leggi la config base dell'algoritmo (es. BoT-SORT params)
-                with open(self.tracker_cfg_path, 'r') as f:
-                    final_tracker_cfg = yaml.safe_load(f) or {}
-
-                # 2. Aggiungi/Sovrascrivi con i parametri di runtime effettivi (da self.config)
-                # Questi sono i valori REALI usati nello script, inclusi gli override CLI
-                runtime_overrides = {
-                    'inference_settings': {
-                        'conf': self.conf,
-                        'iou': self.iou,
-                        'imgsz': self.imgsz,
-                        'device': self.device,
-                        'batch_size': self.batch_size,
-                        'half': self.half,
-                        'classes': self.classes
-                    }
-                }
-                
-                # Uniamo tutto
-                final_tracker_cfg.update(runtime_overrides)
-
-                # 3. Scrivi il nuovo file YAML "freezato"
-                cfg_filename = os.path.basename(self.tracker_cfg_path)
-                self.dst_cfg_path = os.path.join(self.output_folder, cfg_filename)
-
-                with open(self.dst_cfg_path, 'w') as f:
-                    yaml.dump(final_tracker_cfg, f, sort_keys=False)
-                
-                print(f"📋 Configurazione Tracker (Runtime + Algo) salvata in: {self.dst_cfg_path}")
-                
+                shutil.copy(self.tracker_cfg_path, self.dst_cfg_path)
+                print(f"📋 Copia configurazione Tracker salvata in: {self.dst_cfg_path}")
             except Exception as e:
-                print(f"⚠️ Errore salvataggio config tracker: {e}")
+                print(f"⚠️ Impossibile copiare il config del tracker: {e}")
         else:
             print(f"⚠️ File config tracker originale non trovato: {self.tracker_cfg_path}")
