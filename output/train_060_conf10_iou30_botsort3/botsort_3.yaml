@@ -1,36 +1,30 @@
-tracker_type: botsort
-track_high_thresh: 0.6
-track_low_thresh: 0.3
-new_track_thresh: 0.8
-track_buffer: 300
-match_thresh: 0.8
-fuse_score: true
-gmc_method: sparseOptFlow
-cmc_method: sparseOptFlow
-with_reid: false
-proximity_thresh: 0.5
-appearance_thresh: 0.3
-model: auto
-reid_model: osnet_x0_25_msmt17.pt
-inference_settings:
-  conf: 0.1
-  iou: 0.3
-  imgsz: 1024
-  device: 0
-  batch_size: 16
-  half: false
-  classes:
-  - 1
-  - 2
-  - 3
+tracker_type: botsort   # tracker type, ['botsort', 'bytetrack']
+track_high_thresh: 0.6  # threshold for the first association
+track_low_thresh: 0.3   # threshold for the second association
+new_track_thresh: 0.80  # threshold for init new track if the detection does not match any tracks
+track_buffer: 300       # buffer to calculate the time when to remove tracks
+match_thresh: 0.8       # threshold for matching tracks
+fuse_score: True        # Whether to fuse confidence scores with the iou distances before matching
+# min_box_area: 10  # threshold for min box areas(for tracker evaluation, not used for now)
 
+# BoT-SORT settings
+gmc_method: sparseOptFlow # method of global motion compensation
+cmc_method: sparseOptFlow # method of camera motion compensation
+# gmc_method: sif # Alternativa: prova 'sift' o 'orb' se sparseOptFlow fallisce troppo, ma sono più lenti
+
+# ReID model related thresh 
+with_reid: False        # Whether to use ReID model for appearance features
+proximity_thresh: 0.5   # Threshold for proximity matching
+appearance_thresh: 0.3  # Threshold for appearance matching
+model: auto             # Detection model path (automatico prende lo stesso del detector senza ricarcarlo)
+reid_model: osnet_x0_25_msmt17.pt
 
 # ===============================================================================
-# VALUTAZIONE AUTOMATICA - 2025-12-15 12:55:32
-# imgsz: 1024, device: 0, half: False# -------------------------------------------------------------------------------
+# VALUTAZIONE AUTOMATICA - 2025-12-15 13:50:48
 # SEQUENCE             | HOTA(0.5)  | DetA       | AssA       | nMAE      
 # -------------------------------------------------------------------------------
-# SNMOT-060            |  72.92 %   |  86.23 %   |  61.66 %   | 0.0 (TBD)
+# SNMOT-060            |  72.92 %   |  86.23 %   |  61.66 %   | 0.9583
 # -------------------------------------------------------------------------------
-# MEAN SCORES          |  72.92 %   | -          | -          | 0.0       
+# MEAN/GLOBAL SCORES   |  72.92 %   |  86.23 %   |  61.66 %   |  95.83
+# PTBS (HOTA + nMAE)   | 1.6874
 # ================================================================================

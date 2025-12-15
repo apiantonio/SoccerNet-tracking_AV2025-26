@@ -239,91 +239,48 @@ class Evaluator:
             print(f"❌ Errore salvataggio GT behavior: {e}")
             return None
     
-def _save_structured_json(self, results_list, avg_hota, avg_nmae):
+    def _save_structured_json(self, results_list, avg_hota, global_nmae, avg_deta, avg_assa, final_ptbs):
         """
         Salva un file JSON completo con Configurazione Pipeline + Configurazione Tracker (effettiva) + Risultati.
         """
-        # 1. Nome del file univoco
         tracker_cfg_path = self.config['paths']['tracker_config']
-        # Gestione robusta del nome file se path non esiste o è strano
-        if tracker_cfg_path:
-            tracker_cfg_name = os.path.basename(tracker_cfg_path).replace('.yaml', '')
-        else:
-            tracker_cfg_name = "unknown_tracker"
-            
+        tracker_cfg_name = os.path.basename(tracker_cfg_path).replace('.yaml', '') if tracker_cfg_path else "unknown"
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        
         filename = f"results_{tracker_cfg_name}_{timestamp}.json"
         save_path = os.path.join(self.output_folder, filename)
 
-        # 2. Costruzione della configurazione effettiva del Tracker
-        # A. Leggiamo i parametri dell'algoritmo dal file
         tracker_effective_config = {}
         if tracker_cfg_path and os.path.exists(tracker_cfg_path):
             try:
-                with open(tracker_cfg_path, 'r') as f:
-                    tracker_effective_config = yaml.safe_load(f) or {}
-            except Exception as e:
-                print(f"⚠️ Errore lettura config tracker ({tracker_cfg_path}): {e}")
-                tracker_effective_config = {"error": f"Could not read tracker config file: {e}"}
+                with open(tracker_cfg_path, 'r') as f: tracker_effective_config = yaml.safe_load(f) or {}
+            except: pass
         
-        # 3. Preparazione dei dati finali
-        # Assicuriamoci che siano float
-        avg_hota_flt = float(avg_hota)
-        avg_nmae_flt = float(avg_nmae)
-        ptbs = avg_hota_flt + avg_nmae_flt 
-
         structured_data = {
-            "meta": {
-                "timestamp": timestamp,
-                "tracker_config_name": tracker_cfg_name,
-                "team_id": self.team_id
-            },
-            
-            # A. Configurazione generale (i path, roi settings, etc.)
+            "meta": { "timestamp": timestamp, "tracker_config": tracker_cfg_name, "team_id": self.team_id },
             "main_config": self.config,
-            
-            # B. Configurazione Tracker COMPLETA (Algoritmo + Parametri Runtime)
             "tracker_config": tracker_effective_config,
-            
-            # C. Risultati
             "metrics_overall": {
-                "HOTA_05": round(avg_hota_flt, 4),
-                "nMAE": round(avg_nmae_flt, 4),
-                "PTBS": round(ptbs, 4)
+                "HOTA_05": round(float(avg_hota), 4),
+                "DetA": round(float(avg_deta), 4),
+                "AssA": round(float(avg_assa), 4),
+                "nMAE": round(float(global_nmae), 4), # Globale
+                "PTBS": round(float(final_ptbs), 4),   # HOTA + Global nMAE
             },
-            
-            "metrics_per_sequence": []
+            "metrics_per_sequence": results_list
         }
-
-        # Pulizia dati sequenze
-        for res in results_list:
-            clean_res = {
-                "seq": res['seq'],
-                "hota": round(float(res['hota']), 4),
-                "deta": round(float(res['deta']), 4),
-                "assa": round(float(res['assa']), 4),
-                "nmae": round(float(res['nmae']), 4)
-            }
-            structured_data["metrics_per_sequence"].append(clean_res)
-
-        # 4. Scrittura su disco
+        
         try:
-            with open(save_path, 'w') as f:
-                json.dump(structured_data, f, indent=4)
-            print(f"💾 Report JSON strutturato (effettivo) salvato in: {save_path}")
-        except Exception as e:
-            print(f"⚠️ Errore salvataggio JSON: {e}")
+            with open(save_path, 'w') as f: json.dump(structured_data, f, indent=4)
+            print(f"💾 Report JSON salvato: {save_path}")
+        except Exception as e: print(f"⚠️ Errore JSON: {e}")
 
-    def _save_eval_results_in_track_cfg(self, results_list, avg_hota, avg_nmae):
+    def _save_eval_results_in_track_cfg(self, results_list, avg_hota, global_nmae, avg_deta, avg_assa, final_ptbs):
         """
         Aggiunge i risultati di valutazione in coda al file di config del tracker.
         results_list: lista di dizionari {'seq': name, 'hota': val, ...}
         """
-        # 1. Troviamo il nome del file config del tracker
         tracker_cfg_path = self.config['paths']['tracker_config']
         tracker_cfg_name = os.path.basename(tracker_cfg_path)
-        # 2. Costruiamo il percorso nella cartella output
         saved_cfg_path = os.path.join(self.output_folder, tracker_cfg_name)
 
         if os.path.exists(saved_cfg_path):
@@ -332,89 +289,49 @@ def _save_structured_json(self, results_list, avg_hota, avg_nmae):
                     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     f.write("\n\n# " + "=" * 79 + "\n")
                     f.write(f"# VALUTAZIONE AUTOMATICA - {timestamp}\n")
-                    # Recupera parametri tracker in modo sicuro
-                    tk_cfg = self.config.get("tracker", {})
-                    f.write(f'# imgsz: {tk_cfg.get("imgsz", "?")}, device: {tk_cfg.get("device", "?")}, half: {tk_cfg.get("half", False)}\n')
-                    f.write(f"# " + "-" * 79 + "\n")
                     f.write(f"# {'SEQUENCE':<20} | {'HOTA(0.5)':<10} | {'DetA':<10} | {'AssA':<10} | {'nMAE':<10}\n")
                     f.write(f"# {'-' * 79}\n")
                     
-                    # Scriviamo ogni singola sequenza
                     for res in results_list:
-                        s_name = res['seq']
-                        h = res['hota'] * 100
-                        d = res['deta'] * 100
-                        a = res['assa'] * 100
-                        nm = res['nmae'] 
-                        
-                        # FORMATTAZIONE CORRETTA: nMAE con 4 decimali, rimosso (TBD)
-                        f.write(f"# {s_name:<20} | {h:6.2f} %   | {d:6.2f} %   | {a:6.2f} %   | {nm:.4f}\n")
+                        f.write(f"# {res['seq']:<20} | {res['hota']*100:6.2f} %   | {res['deta']*100:6.2f} %   | {res['assa']*100:6.2f} %   | {res['nmae']:.4f}\n")
                     
                     f.write(f"# {'-' * 79}\n")
-                    # FORMATTAZIONE CORRETTA MEAN SCORES
-                    f.write(f"# {'MEAN SCORES':<20} | {avg_hota * 100:6.2f} %   | {'-':<10} | {'-':<10} | {avg_nmae:.4f}\n")
+                    f.write(f"# {'MEAN/GLOBAL SCORES':<20} | {avg_hota * 100:6.2f} %   | {avg_deta * 100:6.2f} %   | {avg_assa * 100:6.2f} %   | {global_nmae * 100:6.2f}\n")
+                    f.write(f"# {'PTBS (HOTA + nMAE)':<20} | {final_ptbs:.4f}\n")
                     f.write("# " + "=" * 80 + "\n")
-                
-                print(f"📝 Report completo aggiunto a: {saved_cfg_path}")
-            except Exception as e:
-                print(f"⚠️ Errore scrittura metriche su file config: {e}")
-        else:
-            print(f"ℹ️ File config tracker non trovato in output ({saved_cfg_path}). Nessun log scritto.")
+                print(f"📝 Report TXT aggiunto a: {saved_cfg_path}")
+            except Exception as e: print(f"⚠️ Errore TXT: {e}")
             
-def _compute_nmae(self, seq):
+    def _compute_raw_mae_data(self, seq):
         """
-        Calcola nMAE per una sequenza.
-        Se manca il GT del behavior, prova a generarlo dal GT del tracking.
-        Formula: nMAE = (10 - min(10, MAE)) / 10
+        Ritorna (total_absolute_error, num_samples) per una sequenza.
+        Usato per calcolare sia il nMAE locale che contribuisce al globale.
         """
-        # Percorso GT tracking (necessario per generare il behavior se manca)
         gt_tracking_path = os.path.join(self.input_folder, seq, 'gt', 'gt.txt')
-        
-        # 1. Ottieni il path del GT behavior (generandolo se necessario)
         gt_behavior_path = self._generate_missing_behavior_gt(seq, gt_tracking_path)
-        
-        # Percorso del file predizioni
         pred_path = os.path.join(self.output_folder, f"behavior_{seq}_{self.team_id}.txt")
 
-        # Controlli esistenza file
-        if not gt_behavior_path or not os.path.exists(gt_behavior_path):
-            print(f"{seq:<20} | ⚠️ NO GT BEHAVIOR")
-            return 0.0
-            
-        if not os.path.exists(pred_path):
-            print(f"{seq:<20} | ⚠️ NO PRED BEHAVIOR")
-            return 0.0
+        if not gt_behavior_path or not os.path.exists(gt_behavior_path): return 0.0, 0
+        if not os.path.exists(pred_path): return 0.0, 0
 
-        # 2. Caricamento Dati
         gt_data = self._load_behavior_file(gt_behavior_path)
         pred_data = self._load_behavior_file(pred_path)
         
-        if not gt_data:
-            return 0.0
+        if not gt_data: return 0.0, 0
 
         total_abs_error = 0.0
         n_samples = 0
 
-        # 3. Calcolo MAE
-        # Iteriamo su tutte le voci del GT
         for key, gt_count in gt_data.items():
-            # key è (frame_id, region_id)
-            # Se manca la predizione per quel frame, assumiamo 0
             pred_count = pred_data.get(key, 0)
-            
-            diff = abs(pred_count - gt_count)
-            total_abs_error += diff
+            total_abs_error += abs(pred_count - gt_count)
             n_samples += 1
             
-        if n_samples == 0:
-            return 0.0
-            
-        mae = total_abs_error / n_samples
-        
-        # 4. Calcolo nMAE normalizzato
-        nmae = (10.0 - min(10.0, mae)) / 10.0
-        
-        return nmae
+        return total_abs_error, n_samples
+
+    def _normalize_mae(self, mae):
+        """Formula di normalizzazione standard"""
+        return (10.0 - min(10.0, mae)) / 10.0
 
     def evaluate(self, sequences):
         """Esegue la pipeline di valutazione completa."""
@@ -422,57 +339,78 @@ def _compute_nmae(self, seq):
         print(f"{'SEQUENCE':<20} | {'HOTA(0.5)':<10} | {'DetA':<10} | {'AssA':<10} | {'nMAE':<10}")
         print("-" * 80)
         
-        sequence_results = [] # Lista per accumulare i dati di ogni sequenza
+        sequence_results = [] 
+        
+        # Accumulatori per le medie
         hota_values = []
-        nmae_values = []
+        deta_values = []
+        assa_values = []
+        
+        # Accumulatori per nMAE GLOBALE
+        global_abs_error = 0.0
+        global_samples = 0
 
         for seq in sequences:
             # 1. Definizione Percorsi
             gt_path = os.path.join(self.input_folder, seq, 'gt', 'gt.txt')
             pred_path = os.path.join(self.output_folder, f"tracking_{seq}_{self.team_id}.txt")
 
-            if not os.path.exists(gt_path):
-                print(f"{seq:<20} | ⚠️ GT MISSING")
-                continue
-            
-            if not os.path.exists(pred_path):
-                print(f"{seq:<20} | ⚠️ PRED MISSING")
+            if not os.path.exists(gt_path) or not os.path.exists(pred_path):
+                print(f"{seq:<20} | ⚠️ MISSING FILES")
                 continue
 
             # 2. Tracking Eval (HOTA)
             gt_data = self._load_txt(gt_path)
             pred_data = self._load_txt(pred_path)
-            
             hota, deta, assa = self._compute_hota_05(gt_data, pred_data)
             
-            # 3. Behaviour Eval (nMAE) - Placeholder
-            nmae = self._compute_nmae(seq)
-
-            # Accumulo valori per le medie
             hota_values.append(hota)
-            nmae_values.append(nmae)
+            deta_values.append(deta)
+            assa_values.append(assa)
 
-            # Accumulo dati per il report finale
+            # 3. Behaviour Eval (nMAE)
+            # Calcoliamo errore grezzo per il globale
+            abs_err, samples = self._compute_raw_mae_data(seq)
+            global_abs_error += abs_err
+            global_samples += samples
+            
+            # Calcoliamo nMAE locale per il report per-sequenza
+            local_mae = (abs_err / samples) if samples > 0 else 0.0
+            local_nmae = self._normalize_mae(local_mae)
+
+            # Accumulo dati per il report
             sequence_results.append({
                 'seq': seq,
                 'hota': hota,
                 'deta': deta,
                 'assa': assa,
-                'nmae': nmae
+                'nmae': local_nmae,
+                'ptbs': hota + local_nmae # PTBS locale
             })
 
-            # Stampa riga a console
-            print(f"{seq:<20} | {hota*100:6.2f} %   | {deta*100:6.2f} %   | {assa*100:6.2f} %   | {nmae} (TBD)")
+            print(f"{seq:<20} | {hota*100:6.2f} %   | {deta*100:6.2f} %   | {assa*100:6.2f} %   | {local_nmae:.4f}")
 
         print("-" * 80)
         
+        # 4. Calcolo metriche FINALI
         avg_hota = np.mean(hota_values) if hota_values else 0.0
-        avg_nmae = np.mean(nmae_values) if nmae_values else 0.0
-
-        print(f"{'MEAN SCORES':<20} | {avg_hota * 100:6.2f} %   | {'-':<10} | {'-':<10} | {avg_nmae:.4f}")
+        avg_deta = np.mean(deta_values) if deta_values else 0.0
+        avg_assa = np.mean(assa_values) if assa_values else 0.0
+        
+        # Calcolo nMAE GLOBALE (pesato su tutti i frame)
+        if global_samples > 0:
+            global_mae = global_abs_error / global_samples
+            global_nmae = self._normalize_mae(global_mae)
+        else:
+            global_nmae = 0.0
+            
+        # Calcolo PTBS Finale
+        final_ptbs = avg_hota + global_nmae
+        
+        print(f"{'MEAN/GLOBAL SCORES':<20} | {avg_hota * 100:6.2f} %   | {avg_deta * 100:6.2f} %   | {avg_assa * 100:6.2f} %   | {global_nmae:.4f}")
+        print(f"{'PTBS (HOTA + nMAE)':<20} | {final_ptbs:6.4f}")
         print("="*80 + "\n")
         
-        # Salvataggio risultati
         if sequence_results:
-            self._save_eval_results_in_track_cfg(sequence_results, avg_hota, avg_nmae)
-            self._save_structured_json(sequence_results, avg_hota, avg_nmae)
+            self._save_eval_results_in_track_cfg(sequence_results, avg_hota, global_nmae, avg_deta, avg_assa, final_ptbs)
+            self._save_structured_json(sequence_results, avg_hota, global_nmae, avg_deta, avg_assa, final_ptbs)
