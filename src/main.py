@@ -59,7 +59,7 @@ def main():
     parser.add_argument('-s','--step', type=str, nargs='+', default=['all'], 
                         choices=['tracking', 'behaviour', 'visualizer', 'eval', 'all'], 
                         help='Step da eseguire. Puoi indicarne più di uno (es: --step behaviour visualizer)')
-    parser.add_argument('--seq', type=str, nargs='+', help='Lista sequenze (es. SNMOT-060).')
+    parser.add_argument('--seq', type=str, nargs='+', help='Lista sequenze (es. SNMOT-060), o "all" per tutte le sequenze nel folder di input')
     
     # Argomenti opzionali per sovrascrivere i path nel file di config
     parser.add_argument('-i', '--input_folder', type=str, help='Sovrascrivi cartella input dal config')

@@ -304,7 +304,7 @@ class Evaluator:
                     
                     f.write(f"# {'-' * 79}\n")
                     f.write(f"# {'MEAN/GLOBAL SCORES':<20} | {avg_hota * 100:6.2f} %   | {avg_deta * 100:6.2f} %   | {avg_assa * 100:6.2f} %   | {global_nmae * 100:6.2f} %\n")
-                    f.write(f"# {'PTBS (HOTA + nMAE)':<20} | {final_ptbs:.4f}\n")
+                    f.write(f"# {'PTBS (HOTA + nMAE)':<20} | {final_ptbs:7.4f}\n")
                     f.write("# " + "=" * 80 + "\n")
                 print(f"📝 Report TXT aggiunto a: {saved_cfg_path}")
             except Exception as e: print(f"⚠️ Errore TXT: {e}")
@@ -340,6 +340,35 @@ class Evaluator:
         """Formula di normalizzazione standard"""
         return (10.0 - min(10.0, mae)) / 10.0
 
+    def _get_ignore_ids(self, seq):
+        """
+        Legge gameinfo.ini e restituisce un set di ID da ignorare (es. la palla).
+        Formato ini: trackletID_18= ball;1 -> Ignora ID 18
+        """
+        ini_path = os.path.join(self.input_folder, seq, "gameinfo.ini")
+        ignore_ids = set()
+        
+        if not os.path.exists(ini_path):
+            return ignore_ids
+        
+        try:
+            with open(ini_path, 'r') as f:
+                for line in f:
+                    # Cerca righe come "trackletID_18= ball;1"
+                    if line.strip().startswith("trackletID_") and "=" in line:
+                        key, val = line.split("=", 1)
+                        if "ball" in val.lower():
+                            # Estrai l'ID dalla chiave (trackletID_18 -> 18)
+                            try:
+                                track_id = int(key.split("_")[1])
+                                ignore_ids.add(track_id)
+                            except (IndexError, ValueError):
+                                continue
+        except Exception as e:
+            print(f"⚠️ Errore lettura gameinfo.ini per {seq}: {e}")
+            
+        return ignore_ids
+
     def evaluate(self, sequences):
         """Esegue la pipeline di valutazione completa."""
         print("\n" + "="*80)
@@ -369,6 +398,14 @@ class Evaluator:
             # 2. Tracking Eval (HOTA)
             gt_data = self._load_txt(gt_path)
             pred_data = self._load_txt(pred_path)
+            
+            # Filtro palla: Rimuovi ID della palla dal GT
+            ignore_ids = self._get_ignore_ids(seq)
+            if len(gt_data) > 0 and ignore_ids:
+                # Mantieni solo le righe dove l'ID (colonna 1) NON è in ignore_ids
+                # gt_data[:, 1] è l'array degli ID
+                mask = [int(row[1]) not in ignore_ids for row in gt_data]
+                gt_data = gt_data[mask]
             hota, deta, assa = self._compute_hota_05(gt_data, pred_data)
             
             hota_values.append(hota)
@@ -384,15 +421,18 @@ class Evaluator:
             # Calcoliamo nMAE locale per il report per-sequenza
             local_mae = (abs_err / samples) if samples > 0 else 0.0
             local_nmae = self._normalize_mae(local_mae)
+            
+            # Calcolo PTBS locale
+            ptbs_local = hota + local_nmae
 
             # Accumulo dati per il report
             sequence_results.append({
                 'seq':  seq,
-                'hota': round(float(hota), 4),
-                'deta': round(float(deta), 4),
-                'assa': round(float(assa), 4),
-                'nmae': round(float(local_nmae), 4),
-                'ptbs': round(float(hota + local_nmae), 4) # PTBS locale
+                'hota': round(hota, 4),       # HOTA locale
+                'deta': round(deta, 4),       # DetA locale
+                'assa': round(assa, 4),       # AssA locale
+                'nmae': round(local_nmae, 4), # nMAE locale
+                'ptbs': round(ptbs_local, 4)  # PTBS locale
             })
 
             print(f"{seq:<20} | {hota*100:6.2f} %   | {deta*100:6.2f} %   | {assa*100:6.2f} %   | {local_nmae*100:6.2f} %")
@@ -415,7 +455,7 @@ class Evaluator:
         final_ptbs = avg_hota + global_nmae
         
         print(f"{'MEAN/GLOBAL SCORES':<20} | {avg_hota * 100:6.2f} %   | {avg_deta * 100:6.2f} %   | {avg_assa * 100:6.2f} %   | {global_nmae * 100:6.2f} %")
-        print(f"{'PTBS (HOTA + nMAE)':<20} | {final_ptbs:6.4f}")
+        print(f"{'PTBS (HOTA + nMAE)':<20} | {final_ptbs:7.4f}")
         print("="*80 + "\n")
         
         if sequence_results:
