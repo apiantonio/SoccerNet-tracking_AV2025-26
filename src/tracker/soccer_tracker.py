@@ -28,7 +28,7 @@ class SoccerTracker:
         self.imgsz = config['tracker'].get('imgsz', 960)
         self.half = config['tracker'].get('half', False)
     
-        print(f"\n🔄 Caricamento Modello YOLO: {self.model_path}")
+        print(f"🔄 Caricamento Modello YOLO: {self.model_path}")
         self.model = YOLO(self.model_path)
 
     def track_sequence(self, sequence_name):
@@ -43,7 +43,7 @@ class SoccerTracker:
         output_filename = f"tracking_{sequence_name}_{self.config['settings']['team_id']}.txt"
         output_path = os.path.join(output_dir, output_filename)
 
-        print(f"🚀 Avvio Tracking: {sequence_name} | imgsz: {self.imgsz} | conf: {self.conf} | iou: {self.iou} | batch: {self.batch_size} | device: {self.device} | half-precision (FP16): {self.half} | verbose: {self.verbose}")
+        print(f"\n🚀 Avvio Tracking: {sequence_name} | imgsz: {self.imgsz} | conf: {self.conf} | iou: {self.iou} | batch: {self.batch_size} | device: {self.device} | half-precision (FP16): {self.half} | verbose: {self.verbose}")
 
         # PULIZIA MEMORIA PRIMA DI INIZIARE
         gc.collect()
@@ -66,7 +66,7 @@ class SoccerTracker:
             stream=True,     # Stream è fondamentale per non saturare la RAM
         )
         elapsed_time = time.time() - current_time
-        print(f"⏱️ Tracking completato in {elapsed_time:.2f} secondi.")
+        print(f"⏱️ Tracking completato in {elapsed_time:.4f} secondi.")
         
         # Scrittura Output
         current_time = time.time()

@@ -162,7 +162,7 @@ class Evaluator:
         if os.path.exists(gt_behavior_path):
             return gt_behavior_path
 
-        print(f"⚠️ Behavior GT mancante per {seq}. Generazione automatica in corso...")
+        # print(f"⚠️ Behavior GT mancante per {seq}. Generazione automatica in corso...")
         
         # 1. Recupero configurazione ROI
         roi_config_path = self.config['paths'].get('roi_config')
@@ -233,7 +233,7 @@ class Evaluator:
             os.makedirs(os.path.dirname(gt_behavior_path), exist_ok=True)
             with open(gt_behavior_path, 'w') as f:
                 f.writelines(lines_to_write)
-            print(f"✅ Behavior GT generato: {gt_behavior_path}")
+            # print(f"✅ Behavior GT generato: {gt_behavior_path}")
             return gt_behavior_path
         except Exception as e:
             print(f"❌ Errore salvataggio GT behavior: {e}")
@@ -256,9 +256,15 @@ class Evaluator:
             except: pass
         
         structured_data = {
-            "meta": { "timestamp": timestamp, "tracker_config": tracker_cfg_name, "team_id": self.team_id },
+            "meta": { 
+                "timestamp": timestamp,
+                "tracker_config": tracker_cfg_name, 
+                "team_id": self.team_id },
+            
             "main_config": self.config,
+            
             "tracker_config": tracker_effective_config,
+            
             "metrics_overall": {
                 "HOTA_05": round(float(avg_hota), 4),
                 "DetA": round(float(avg_deta), 4),
@@ -266,6 +272,7 @@ class Evaluator:
                 "nMAE": round(float(global_nmae), 4), # Globale
                 "PTBS": round(float(final_ptbs), 4),   # HOTA + Global nMAE
             },
+            
             "metrics_per_sequence": results_list
         }
         
@@ -293,10 +300,10 @@ class Evaluator:
                     f.write(f"# {'-' * 79}\n")
                     
                     for res in results_list:
-                        f.write(f"# {res['seq']:<20} | {res['hota']*100:6.2f} %   | {res['deta']*100:6.2f} %   | {res['assa']*100:6.2f} %   | {res['nmae']:.4f}\n")
+                        f.write(f"# {res['seq']:<20} | {res['hota']*100:6.2f} %   | {res['deta']*100:6.2f} %   | {res['assa']*100:6.2f} %   | {res['nmae']*100:6.2f} %\n")
                     
                     f.write(f"# {'-' * 79}\n")
-                    f.write(f"# {'MEAN/GLOBAL SCORES':<20} | {avg_hota * 100:6.2f} %   | {avg_deta * 100:6.2f} %   | {avg_assa * 100:6.2f} %   | {global_nmae * 100:6.2f}\n")
+                    f.write(f"# {'MEAN/GLOBAL SCORES':<20} | {avg_hota * 100:6.2f} %   | {avg_deta * 100:6.2f} %   | {avg_assa * 100:6.2f} %   | {global_nmae * 100:6.2f} %\n")
                     f.write(f"# {'PTBS (HOTA + nMAE)':<20} | {final_ptbs:.4f}\n")
                     f.write("# " + "=" * 80 + "\n")
                 print(f"📝 Report TXT aggiunto a: {saved_cfg_path}")
@@ -380,15 +387,15 @@ class Evaluator:
 
             # Accumulo dati per il report
             sequence_results.append({
-                'seq': seq,
-                'hota': hota,
-                'deta': deta,
-                'assa': assa,
-                'nmae': local_nmae,
-                'ptbs': hota + local_nmae # PTBS locale
+                'seq':  seq,
+                'hota': round(float(hota), 4),
+                'deta': round(float(deta), 4),
+                'assa': round(float(assa), 4),
+                'nmae': round(float(local_nmae), 4),
+                'ptbs': round(float(hota + local_nmae), 4) # PTBS locale
             })
 
-            print(f"{seq:<20} | {hota*100:6.2f} %   | {deta*100:6.2f} %   | {assa*100:6.2f} %   | {local_nmae:.4f}")
+            print(f"{seq:<20} | {hota*100:6.2f} %   | {deta*100:6.2f} %   | {assa*100:6.2f} %   | {local_nmae*100:6.2f} %")
 
         print("-" * 80)
         
@@ -407,7 +414,7 @@ class Evaluator:
         # Calcolo PTBS Finale
         final_ptbs = avg_hota + global_nmae
         
-        print(f"{'MEAN/GLOBAL SCORES':<20} | {avg_hota * 100:6.2f} %   | {avg_deta * 100:6.2f} %   | {avg_assa * 100:6.2f} %   | {global_nmae:.4f}")
+        print(f"{'MEAN/GLOBAL SCORES':<20} | {avg_hota * 100:6.2f} %   | {avg_deta * 100:6.2f} %   | {avg_assa * 100:6.2f} %   | {global_nmae * 100:6.2f} %")
         print(f"{'PTBS (HOTA + nMAE)':<20} | {final_ptbs:6.4f}")
         print("="*80 + "\n")
         
