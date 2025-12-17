@@ -251,10 +251,11 @@ class Evaluator:
             "meta": { 
                 "timestamp": timestamp,
                 "tracker_config": tracker_cfg_name, 
-                "team_id": self.team_id },
+                "team_id": self.team_id 
+            },
             
             "main_config": self.config,
-            
+
             "tracker_config": tracker_effective_config,
             
             "metrics_overall": {
@@ -272,7 +273,8 @@ class Evaluator:
         try:
             with open(save_path, 'w') as f: json.dump(structured_data, f, indent=4)
             print(f"💾 Report JSON salvato: {save_path}")
-        except Exception as e: print(f"⚠️ Errore JSON: {e}")
+        except Exception as e: 
+            print(f"⚠️ Errore JSON: {e}")
 
     def _save_eval_results_in_track_cfg(self, results_list, avg_hota, global_nmae, avg_deta, avg_assa, final_ptbs, global_raw_counts):
         """
