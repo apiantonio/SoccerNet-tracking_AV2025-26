@@ -1,0 +1,84 @@
+{
+    "meta": {
+        "timestamp": "20251217_101114",
+        "tracker_config": "botsort_6",
+        "team_id": "16"
+    },
+    "main_config": {
+        "paths": {
+            "input_folder": "./tracking/test",
+            "output_folder": ".\\output\\test_116-134-140-188_conf40_iou45_botsort6",
+            "detection_model": "yolo11x",
+            "reid_model": "osnet_x0_25_msmt17.pt",
+            "tracker_config": ".\\configs\\botsort_6.yaml",
+            "roi_config": "configs/roi_config.json"
+        },
+        "settings": {
+            "team_id": "16",
+            "sequences": [
+                "SNMOT-060"
+            ]
+        },
+        "tracker": {
+            "imgsz": 1088,
+            "conf": 0.1,
+            "iou": 0.5,
+            "batch": 1,
+            "device": 0,
+            "half": false,
+            "classes": [
+                0
+            ],
+            "verbose": false
+        },
+        "behavior": null
+    },
+    "tracker_config": {
+        "tracker_type": "botsort",
+        "track_high_thresh": 0.6,
+        "track_low_thresh": 0.1,
+        "new_track_thresh": 0.7,
+        "track_buffer": 150,
+        "match_thresh": 0.6,
+        "fuse_score": true,
+        "gmc_method": "sparseOptFlow",
+        "with_reid": false,
+        "proximity_thresh": 0.5,
+        "appearance_thresh": 0.2,
+        "model": "auto",
+        "reid_model": "models/osnet_x1_0_soccernet.pt"
+    },
+    "metrics_overall": {
+        "HOTA_05": 0.158,
+        "DetA": 0.2096,
+        "AssA": 0.1215,
+        "nMAE": 0.6892,
+        "PTBS": 0.8472
+    },
+    "metrics_per_sequence": [
+        {
+            "seq": "SNMOT-116",
+            "hota": 0.4668,
+            "deta": 0.6252,
+            "assa": 0.3486,
+            "nmae": 0.7713,
+            "ptbs": 1.2382
+        },
+        {
+            "seq": "SNMOT-119",
+            "hota": 0.0057,
+            "deta": 0.0023,
+            "assa": 0.0138,
+            "nmae": 0.6896,
+            "ptbs": 0.6953
+        },
+        {
+            "seq": "SNMOT-134",
+            "hota": 0.0016,
+            "deta": 0.0013,
+            "assa": 0.002,
+            "nmae": 0.6065,
+            "ptbs": 0.6082
+        }
+    ]
+}

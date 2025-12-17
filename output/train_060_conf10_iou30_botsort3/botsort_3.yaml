@@ -1,0 +1,30 @@
+tracker_type: botsort   # tracker type, ['botsort', 'bytetrack']
+track_high_thresh: 0.6  # threshold for the first association
+track_low_thresh: 0.3   # threshold for the second association
+new_track_thresh: 0.80  # threshold for init new track if the detection does not match any tracks
+track_buffer: 300       # buffer to calculate the time when to remove tracks
+match_thresh: 0.8       # threshold for matching tracks
+fuse_score: True        # Whether to fuse confidence scores with the iou distances before matching
+# min_box_area: 10  # threshold for min box areas(for tracker evaluation, not used for now)
+
+# BoT-SORT settings
+gmc_method: sparseOptFlow # method of global motion compensation
+cmc_method: sparseOptFlow # method of camera motion compensation
+# gmc_method: sif # Alternativa: prova 'sift' o 'orb' se sparseOptFlow fallisce troppo, ma sono più lenti
+
+# ReID model related thresh 
+with_reid: False        # Whether to use ReID model for appearance features
+proximity_thresh: 0.5   # Threshold for proximity matching
+appearance_thresh: 0.3  # Threshold for appearance matching
+model: auto             # Detection model path (automatico prende lo stesso del detector senza ricarcarlo)
+reid_model: osnet_x0_25_msmt17.pt
+
+# ===============================================================================
+# VALUTAZIONE AUTOMATICA - 2025-12-15 16:47:42
+# SEQUENCE             | HOTA(0.5)  | DetA       | AssA       | nMAE      
+# -------------------------------------------------------------------------------
+# SNMOT-060            |  74.92 %   |  91.02 %   |  61.66 %   |  95.83 %
+# -------------------------------------------------------------------------------
+# MEAN/GLOBAL SCORES   |  74.92 %   |  91.02 %   |  61.66 %   |  95.83 %
+# PTBS (HOTA + nMAE)   |  1.7074
+# ================================================================================

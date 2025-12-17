@@ -1,0 +1,71 @@
+{
+    "meta": {
+        "timestamp": "20251216_131104",
+        "tracker_config": "botsort_5",
+        "team_id": "16"
+    },
+    "main_config": {
+        "paths": {
+            "input_folder": "./tracking/train",
+            "output_folder": "./output/train_060_conf10_iou45_botsort5",
+            "detection_model": "models/player_detection_best.pt",
+            "reid_model": "osnet_x0_25_msmt17.pt",
+            "tracker_config": ".\\configs\\botsort_5.yaml",
+            "roi_config": "configs/roi_config.json"
+        },
+        "settings": {
+            "team_id": "16",
+            "sequences": [
+                "SNMOT-060"
+            ]
+        },
+        "tracker": {
+            "imgsz": 1980,
+            "conf": 0.1,
+            "iou": 0.45,
+            "batch": 16,
+            "device": 0,
+            "half": false,
+            "classes": [
+                1,
+                2,
+                3
+            ],
+            "verbose": false
+        },
+        "behavior": null
+    },
+    "tracker_config": {
+        "tracker_type": "botsort",
+        "track_high_thresh": 0.6,
+        "track_low_thresh": 0.1,
+        "new_track_thresh": 0.7,
+        "track_buffer": 150,
+        "match_thresh": 0.8,
+        "fuse_score": true,
+        "gmc_method": "sparseOptFlow",
+        "cmc_method": "sparseOptFlow",
+        "with_reid": true,
+        "proximity_thresh": 0.5,
+        "appearance_thresh": 0.2,
+        "model": "auto",
+        "reid_model": "models/osnet_x1_0_soccernet.pt"
+    },
+    "metrics_overall": {
+        "HOTA_05": 0.1579,
+        "DetA": 0.1425,
+        "AssA": 0.175,
+        "nMAE": 0.6263,
+        "PTBS": 0.7842
+    },
+    "metrics_per_sequence": [
+        {
+            "seq": "SNMOT-060",
+            "hota": 0.1579,
+            "deta": 0.1425,
+            "assa": 0.175,
+            "nmae": 0.6263,
+            "ptbs": 0.7842
+        }
+    ]
+}

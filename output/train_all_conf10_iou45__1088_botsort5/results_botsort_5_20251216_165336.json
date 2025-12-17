@@ -1,0 +1,519 @@
+{
+    "meta": {
+        "timestamp": "20251216_165336",
+        "tracker_config": "botsort_5",
+        "team_id": "16"
+    },
+    "main_config": {
+        "paths": {
+            "input_folder": "./tracking/train",
+            "output_folder": "./output/train_all_conf10_iou45__1088_botsort5",
+            "detection_model": "models/player_detection_best.pt",
+            "reid_model": "osnet_x0_25_msmt17.pt",
+            "tracker_config": ".\\configs\\botsort_5.yaml",
+            "roi_config": "configs/roi_config.json"
+        },
+        "settings": {
+            "team_id": "16",
+            "sequences": [
+                "SNMOT-060"
+            ]
+        },
+        "tracker": {
+            "imgsz": 1088,
+            "conf": 0.1,
+            "iou": 0.45,
+            "batch": 16,
+            "device": 0,
+            "half": false,
+            "classes": [
+                1,
+                2,
+                3
+            ],
+            "verbose": false
+        },
+        "behavior": null
+    },
+    "tracker_config": {
+        "tracker_type": "botsort",
+        "track_high_thresh": 0.6,
+        "track_low_thresh": 0.1,
+        "new_track_thresh": 0.7,
+        "track_buffer": 150,
+        "match_thresh": 0.8,
+        "fuse_score": true,
+        "gmc_method": "sparseOptFlow",
+        "cmc_method": "sparseOptFlow",
+        "with_reid": false,
+        "proximity_thresh": 0.5,
+        "appearance_thresh": 0.2,
+        "model": "auto",
+        "reid_model": "models/osnet_x1_0_soccernet.pt"
+    },
+    "metrics_overall": {
+        "HOTA_05": 0.639,
+        "DetA": 0.8027,
+        "AssA": 0.513,
+        "nMAE": 0.926,
+        "PTBS": 1.5651
+    },
+    "metrics_per_sequence": [
+        {
+            "seq": "SNMOT-060",
+            "hota": 0.7614,
+            "deta": 0.9149,
+            "assa": 0.6336,
+            "nmae": 0.96,
+            "ptbs": 1.7214
+        },
+        {
+            "seq": "SNMOT-061",
+            "hota": 0.6865,
+            "deta": 0.8682,
+            "assa": 0.5429,
+            "nmae": 0.9445,
+            "ptbs": 1.631
+        },
+        {
+            "seq": "SNMOT-062",
+            "hota": 0.7425,
+            "deta": 0.9067,
+            "assa": 0.6081,
+            "nmae": 0.9569,
+            "ptbs": 1.6994
+        },
+        {
+            "seq": "SNMOT-063",
+            "hota": 0.615,
+            "deta": 0.8477,
+            "assa": 0.4461,
+            "nmae": 0.9435,
+            "ptbs": 1.5585
+        },
+        {
+            "seq": "SNMOT-064",
+            "hota": 0.5277,
+            "deta": 0.8069,
+            "assa": 0.3451,
+            "nmae": 0.9285,
+            "ptbs": 1.4562
+        },
+        {
+            "seq": "SNMOT-065",
+            "hota": 0.6247,
+            "deta": 0.8059,
+            "assa": 0.4843,
+            "nmae": 0.9399,
+            "ptbs": 1.5646
+        },
+        {
+            "seq": "SNMOT-066",
+            "hota": 0.6112,
+            "deta": 0.8085,
+            "assa": 0.4621,
+            "nmae": 0.9253,
+            "ptbs": 1.5365
+        },
+        {
+            "seq": "SNMOT-067",
+            "hota": 0.5699,
+            "deta": 0.7544,
+            "assa": 0.4305,
+            "nmae": 0.8316,
+            "ptbs": 1.4015
+        },
+        {
+            "seq": "SNMOT-068",
+            "hota": 0.7218,
+            "deta": 0.8777,
+            "assa": 0.5937,
+            "nmae": 0.9693,
+            "ptbs": 1.6911
+        },
+        {
+            "seq": "SNMOT-069",
+            "hota": 0.7151,
+            "deta": 0.7959,
+            "assa": 0.6425,
+            "nmae": 0.9467,
+            "ptbs": 1.6617
+        },
+        {
+            "seq": "SNMOT-070",
+            "hota": 0.6834,
+            "deta": 0.8545,
+            "assa": 0.5466,
+            "nmae": 0.9454,
+            "ptbs": 1.6288
+        },
+        {
+            "seq": "SNMOT-071",
+            "hota": 0.4743,
+            "deta": 0.6319,
+            "assa": 0.356,
+            "nmae": 0.8861,
+            "ptbs": 1.3604
+        },
+        {
+            "seq": "SNMOT-072",
+            "hota": 0.6384,
+            "deta": 0.8145,
+            "assa": 0.5004,
+            "nmae": 0.9321,
+            "ptbs": 1.5705
+        },
+        {
+            "seq": "SNMOT-073",
+            "hota": 0.6534,
+            "deta": 0.8563,
+            "assa": 0.4986,
+            "nmae": 0.9436,
+            "ptbs": 1.597
+        },
+        {
+            "seq": "SNMOT-074",
+            "hota": 0.7535,
+            "deta": 0.8554,
+            "assa": 0.6638,
+            "nmae": 0.9323,
+            "ptbs": 1.6858
+        },
+        {
+            "seq": "SNMOT-075",
+            "hota": 0.4449,
+            "deta": 0.6749,
+            "assa": 0.2932,
+            "nmae": 0.8423,
+            "ptbs": 1.2872
+        },
+        {
+            "seq": "SNMOT-076",
+            "hota": 0.8225,
+            "deta": 0.855,
+            "assa": 0.7912,
+            "nmae": 0.9417,
+            "ptbs": 1.7641
+        },
+        {
+            "seq": "SNMOT-077",
+            "hota": 0.7006,
+            "deta": 0.7765,
+            "assa": 0.6322,
+            "nmae": 0.9529,
+            "ptbs": 1.6535
+        },
+        {
+            "seq": "SNMOT-097",
+            "hota": 0.7129,
+            "deta": 0.8942,
+            "assa": 0.5684,
+            "nmae": 0.9729,
+            "ptbs": 1.6859
+        },
+        {
+            "seq": "SNMOT-098",
+            "hota": 0.7246,
+            "deta": 0.8625,
+            "assa": 0.6088,
+            "nmae": 0.9528,
+            "ptbs": 1.6774
+        },
+        {
+            "seq": "SNMOT-099",
+            "hota": 0.7298,
+            "deta": 0.8611,
+            "assa": 0.6185,
+            "nmae": 0.9746,
+            "ptbs": 1.7044
+        },
+        {
+            "seq": "SNMOT-100",
+            "hota": 0.6273,
+            "deta": 0.8176,
+            "assa": 0.4813,
+            "nmae": 0.9219,
+            "ptbs": 1.5492
+        },
+        {
+            "seq": "SNMOT-101",
+            "hota": 0.7251,
+            "deta": 0.8242,
+            "assa": 0.638,
+            "nmae": 0.9431,
+            "ptbs": 1.6683
+        },
+        {
+            "seq": "SNMOT-102",
+            "hota": 0.7588,
+            "deta": 0.929,
+            "assa": 0.6198,
+            "nmae": 0.9577,
+            "ptbs": 1.7166
+        },
+        {
+            "seq": "SNMOT-103",
+            "hota": 0.5534,
+            "deta": 0.7691,
+            "assa": 0.3981,
+            "nmae": 0.9044,
+            "ptbs": 1.4578
+        },
+        {
+            "seq": "SNMOT-104",
+            "hota": 0.6694,
+            "deta": 0.8227,
+            "assa": 0.5447,
+            "nmae": 0.9061,
+            "ptbs": 1.5755
+        },
+        {
+            "seq": "SNMOT-105",
+            "hota": 0.6153,
+            "deta": 0.8522,
+            "assa": 0.4443,
+            "nmae": 0.937,
+            "ptbs": 1.5523
+        },
+        {
+            "seq": "SNMOT-106",
+            "hota": 0.4552,
+            "deta": 0.6605,
+            "assa": 0.3138,
+            "nmae": 0.8538,
+            "ptbs": 1.309
+        },
+        {
+            "seq": "SNMOT-107",
+            "hota": 0.7283,
+            "deta": 0.8997,
+            "assa": 0.5896,
+            "nmae": 0.9527,
+            "ptbs": 1.681
+        },
+        {
+            "seq": "SNMOT-108",
+            "hota": 0.5886,
+            "deta": 0.7941,
+            "assa": 0.4362,
+            "nmae": 0.9322,
+            "ptbs": 1.5208
+        },
+        {
+            "seq": "SNMOT-109",
+            "hota": 0.5599,
+            "deta": 0.8148,
+            "assa": 0.3847,
+            "nmae": 0.9289,
+            "ptbs": 1.4887
+        },
+        {
+            "seq": "SNMOT-110",
+            "hota": 0.5057,
+            "deta": 0.669,
+            "assa": 0.3823,
+            "nmae": 0.8032,
+            "ptbs": 1.3089
+        },
+        {
+            "seq": "SNMOT-111",
+            "hota": 0.7388,
+            "deta": 0.8391,
+            "assa": 0.6505,
+            "nmae": 0.9657,
+            "ptbs": 1.7045
+        },
+        {
+            "seq": "SNMOT-112",
+            "hota": 0.7781,
+            "deta": 0.8664,
+            "assa": 0.6988,
+            "nmae": 0.9567,
+            "ptbs": 1.7348
+        },
+        {
+            "seq": "SNMOT-113",
+            "hota": 0.8564,
+            "deta": 0.8888,
+            "assa": 0.8252,
+            "nmae": 0.9638,
+            "ptbs": 1.8202
+        },
+        {
+            "seq": "SNMOT-114",
+            "hota": 0.6686,
+            "deta": 0.7775,
+            "assa": 0.575,
+            "nmae": 0.9667,
+            "ptbs": 1.6353
+        },
+        {
+            "seq": "SNMOT-115",
+            "hota": 0.6389,
+            "deta": 0.8358,
+            "assa": 0.4884,
+            "nmae": 0.9295,
+            "ptbs": 1.5684
+        },
+        {
+            "seq": "SNMOT-151",
+            "hota": 0.6548,
+            "deta": 0.8071,
+            "assa": 0.5312,
+            "nmae": 0.9538,
+            "ptbs": 1.6086
+        },
+        {
+            "seq": "SNMOT-152",
+            "hota": 0.5543,
+            "deta": 0.7074,
+            "assa": 0.4343,
+            "nmae": 0.8568,
+            "ptbs": 1.4111
+        },
+        {
+            "seq": "SNMOT-153",
+            "hota": 0.607,
+            "deta": 0.7076,
+            "assa": 0.5208,
+            "nmae": 0.8909,
+            "ptbs": 1.498
+        },
+        {
+            "seq": "SNMOT-154",
+            "hota": 0.3928,
+            "deta": 0.5965,
+            "assa": 0.2586,
+            "nmae": 0.8319,
+            "ptbs": 1.2247
+        },
+        {
+            "seq": "SNMOT-155",
+            "hota": 0.6144,
+            "deta": 0.7499,
+            "assa": 0.5033,
+            "nmae": 0.8901,
+            "ptbs": 1.5045
+        },
+        {
+            "seq": "SNMOT-156",
+            "hota": 0.4698,
+            "deta": 0.6631,
+            "assa": 0.3328,
+            "nmae": 0.8567,
+            "ptbs": 1.3265
+        },
+        {
+            "seq": "SNMOT-157",
+            "hota": 0.5957,
+            "deta": 0.8204,
+            "assa": 0.4325,
+            "nmae": 0.9567,
+            "ptbs": 1.5524
+        },
+        {
+            "seq": "SNMOT-158",
+            "hota": 0.6297,
+            "deta": 0.8127,
+            "assa": 0.488,
+            "nmae": 0.9579,
+            "ptbs": 1.5877
+        },
+        {
+            "seq": "SNMOT-159",
+            "hota": 0.4884,
+            "deta": 0.7447,
+            "assa": 0.3204,
+            "nmae": 0.931,
+            "ptbs": 1.4194
+        },
+        {
+            "seq": "SNMOT-160",
+            "hota": 0.7488,
+            "deta": 0.8448,
+            "assa": 0.6638,
+            "nmae": 0.958,
+            "ptbs": 1.7068
+        },
+        {
+            "seq": "SNMOT-161",
+            "hota": 0.6692,
+            "deta": 0.8343,
+            "assa": 0.5368,
+            "nmae": 0.9261,
+            "ptbs": 1.5953
+        },
+        {
+            "seq": "SNMOT-162",
+            "hota": 0.5319,
+            "deta": 0.7241,
+            "assa": 0.3907,
+            "nmae": 0.9167,
+            "ptbs": 1.4486
+        },
+        {
+            "seq": "SNMOT-163",
+            "hota": 0.5583,
+            "deta": 0.7402,
+            "assa": 0.4211,
+            "nmae": 0.9217,
+            "ptbs": 1.4799
+        },
+        {
+            "seq": "SNMOT-164",
+            "hota": 0.7036,
+            "deta": 0.8402,
+            "assa": 0.5892,
+            "nmae": 0.9392,
+            "ptbs": 1.6428
+        },
+        {
+            "seq": "SNMOT-165",
+            "hota": 0.596,
+            "deta": 0.7056,
+            "assa": 0.5034,
+            "nmae": 0.9339,
+            "ptbs": 1.5299
+        },
+        {
+            "seq": "SNMOT-166",
+            "hota": 0.8008,
+            "deta": 0.8803,
+            "assa": 0.7285,
+            "nmae": 0.9734,
+            "ptbs": 1.7742
+        },
+        {
+            "seq": "SNMOT-167",
+            "hota": 0.5861,
+            "deta": 0.777,
+            "assa": 0.442,
+            "nmae": 0.8817,
+            "ptbs": 1.4677
+        },
+        {
+            "seq": "SNMOT-168",
+            "hota": 0.7226,
+            "deta": 0.8991,
+            "assa": 0.5808,
+            "nmae": 0.9539,
+            "ptbs": 1.6765
+        },
+        {
+            "seq": "SNMOT-169",
+            "hota": 0.6266,
+            "deta": 0.815,
+            "assa": 0.4818,
+            "nmae": 0.9227,
+            "ptbs": 1.5493
+        },
+        {
+            "seq": "SNMOT-170",
+            "hota": 0.4909,
+            "deta": 0.7,
+            "assa": 0.3442,
+            "nmae": 0.8853,
+            "ptbs": 1.3761
+        }
+    ]
+}
