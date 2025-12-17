@@ -133,11 +133,11 @@ class SoccerTracker:
         tracker_cfg = os.path.basename(self.tracker_cfg_path)
         tracker_cfg = yaml.safe_load(open(self.tracker_cfg_path, 'r'))
         if tracker_cfg.get('with_reid', False):
-            print(f"🔍 ReID abilitato.")
+            print(f"\n🔍 ReID abilitato.")
         else:
-            print("🔍 ReID non abilitato.")
+            print("\n🔍 ReID non abilitato.")
 
-        print(f"\n🚀 Avvio Tracking: {sequence_name} | imgsz: {self.imgsz} | conf: {self.conf} | iou: {self.iou} | batch: {self.batch_size} | device: {self.device} | half-precision (FP16): {self.half} | verbose: {self.verbose} | debug: (track: {self.show_track}, behav: {self.show_behaviour})")
+        print(f"🚀 Avvio Tracking: {sequence_name} | imgsz: {self.imgsz} | conf: {self.conf} | iou: {self.iou} | batch: {self.batch_size} | device: {self.device} | half-precision (FP16): {self.half} | verbose: {self.verbose} | debug: (track: {self.show_track}, behav: {self.show_behaviour})")
 
         gc.collect()
         torch.cuda.empty_cache()
