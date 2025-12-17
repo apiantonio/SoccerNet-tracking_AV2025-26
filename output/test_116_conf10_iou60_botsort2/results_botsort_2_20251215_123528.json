@@ -1,0 +1,66 @@
+{
+    "meta": {
+        "timestamp": "20251215_123528",
+        "tracker_config_name": "botsort_2",
+        "team_id": "16"
+    },
+    "main_config": {
+        "paths": {
+            "input_folder": "./tracking/test",
+            "output_folder": "./output/test_116_conf10_iou60_botsort2",
+            "detection_model": "models/player_detection_best.pt",
+            "reid_model": "osnet_x0_25_msmt17.pt",
+            "tracker_config": ".\\configs\\botsort_2.yaml",
+            "roi_config": "configs/roi_config.json"
+        },
+        "settings": {
+            "team_id": "16",
+            "sequences": [
+                "SNMOT-060"
+            ]
+        },
+        "tracker": {
+            "imgsz": 1024,
+            "conf": 0.1,
+            "iou": 0.6,
+            "batch": 4,
+            "device": 0,
+            "half": false,
+            "classes": [
+                1,
+                2,
+                3
+            ],
+            "verbose": false
+        },
+        "behavior": null
+    },
+    "tracker_config": {
+        "imgsz": 1024,
+        "conf": 0.1,
+        "iou": 0.6,
+        "batch": 4,
+        "device": 0,
+        "half": false,
+        "classes": [
+            1,
+            2,
+            3
+        ],
+        "verbose": false
+    },
+    "metrics_overall": {
+        "HOTA_05": 0.44197137953127585,
+        "nMAE": 0.0,
+        "PTBS": 0.44197137953127585
+    },
+    "metrics_per_sequence": [
+        {
+            "seq": "SNMOT-116",
+            "hota": 0.44197137953127585,
+            "deta": 0.5640922607088322,
+            "assa": 0.34628856648257966,
+            "nmae": 0.0
+        }
+    ]
+}

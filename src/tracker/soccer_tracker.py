@@ -24,6 +24,10 @@ class SoccerTracker:
         self.iou = config['tracker']['iou']
         self.batch_size = config['tracker']['batch']
 
+        self.conf = config['tracker']['conf']
+        self.iou = config['tracker']['iou']
+        self.batch_size = config['tracker']['batch']
+
         self.device = config['tracker']['device']
         self.output_folder = config['paths']['output_folder']
         self.classes = config['tracker'].get('classes', [1,2,3])
@@ -146,6 +150,9 @@ class SoccerTracker:
             source=source_path,
             tracker=self.tracker_cfg_path,
             imgsz=self.imgsz,
+            conf=self.conf,
+            iou=self.iou,
+            batch=self.batch_size,
             conf=self.conf,
             iou=self.iou,
             batch=self.batch_size,
