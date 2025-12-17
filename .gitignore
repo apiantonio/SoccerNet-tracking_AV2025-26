@@ -22,3 +22,4 @@ venv/
 # --- Modelli Salvati ---
 models/*.pt
 models/*.pth
+models\model.osnet.pth.tar-10

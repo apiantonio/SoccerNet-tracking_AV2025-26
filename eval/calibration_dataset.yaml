@@ -1,0 +1,12 @@
+
+path: C:\Users\antonio\OneDrive\Desktop\Corsi UNISA\Magistrale\2. Artificial Vision\ProjectWork\temp_calibration_data # dataset root dir
+train: images/val  # usiamo val anche per train per finta
+val: images/val    # immagini di validazione
+test:              # test images (optional)
+
+# Classes
+names:
+  0: ball
+  1: goalkeeper
+  2: player
+  3: referee

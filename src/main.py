@@ -25,12 +25,24 @@ def finalize_arguments(args, cfg):
         cfg['paths']['roi_config'] = args.roi_config
     if args.imgsz:
         cfg['tracker']['imgsz'] = args.imgsz
-    if args.reid is not None:
-        cfg['tracker']['use_reid'] = args.reid
     if args.half is not None:
         cfg['tracker']['half'] = args.half
     if args.verbose:
         cfg['tracker']['verbose'] = True
+    if args.conf:
+        cfg['tracker']['conf'] = args.conf
+    if args.iou:
+        cfg['tracker']['iou'] = args.iou
+    if args.batch:
+        cfg['tracker']['batch'] = args.batch
+    if 'none' in args.debug:
+        cfg['debug'] = False
+    else:
+        # Crea un dizionario di configurazione per il debug
+        cfg['debug'] = {
+            'show_track': 'show_tracks' in args.debug,
+            'show_behaviour': 'show_behaviour' in args.debug
+        }
         
     return cfg
 
@@ -51,20 +63,27 @@ def main():
     parser = argparse.ArgumentParser(description="SoccerNet Pipeline")
     parser.add_argument('-c', '--config', type=str, default='configs/main_config.yaml', help='Path al file config')
     parser.add_argument('-s','--step', type=str, nargs='+', default=['all'], 
-                        choices=['tracking', 'behaviour', 'visualizer', 'eval', 'all'], 
+                        choices=['tracking', 'behaviour', 'eval', 'visualizer', 'all'], 
                         help='Step da eseguire. Puoi indicarne più di uno (es: --step behaviour visualizer)')
-    parser.add_argument('--seq', type=str, nargs='+', help='Lista sequenze (es. SNMOT-060).')
+    parser.add_argument('--seq', type=str, nargs='+', help='Lista sequenze (es. SNMOT-060), o "all" per tutte le sequenze nel folder di input', default=['all'])
     
     # Argomenti opzionali per sovrascrivere i path nel file di config
     parser.add_argument('-i', '--input_folder', type=str, help='Sovrascrivi cartella input dal config')
     parser.add_argument('-o', '--output_folder', type=str, help='Sovrascrivi cartella output dal config')
     parser.add_argument('--tracker_config', type=str, help='Path al file di configurazione del tracker (opzionale sovrascrittura)')
     parser.add_argument('--roi_config', type=str, help='Path al file di configurazione delle ROI (opzionale sovrascrittura)')
+    
     parser.add_argument('--imgsz', type=int, help='Sovrascrivi la risoluzione di input del tracker (es. 640, 960, 1088, 1280)')
-    parser.add_argument('--reid', help='Sovrascrivi il modello ReID del tracker (se supportato)', action='store_true', default=None)
+    parser.add_argument('--conf', type=float, help='Sovrascrivi la confidenza minima del tracker (es. 0.25)')
+    parser.add_argument('--iou', type=float, help='Sovrascrivi la soglia IOU del tracker (es. 0.7)')
+    parser.add_argument('--batch', type=int, help='Sovrascrivi la dimensione del batch per il tracker (se supportato)')
+    parser.add_argument('--show_video', action='store_true', help='Mostra il video di tracking in tempo reale durante l\'esecuzione', default=False)
     parser.add_argument('-hp', '--fp16', '--half', dest='half', help='Usa FP16 per il tracking (se supportato)', action='store_true', default=None)
+    
     parser.add_argument('-v', '--verbose', action='store_true', help='Abilita output verboso per il tracker', default=False)
-
+    parser.add_argument('--debug', type=str, nargs='+', choices=['show_tracks', 'show_behaviour', 'none'], default=['none'],
+                        help='Modalità debug: show_tracks, show_behaviour o entrambi')
+     
     args = parser.parse_args()     # Parsing argomenti da linea di comando
     cfg = load_config(args.config) # Caricamento config principale
     
@@ -72,6 +91,10 @@ def main():
     
     if args.seq:
         sequences = args.seq
+        if sequences == ['all']:
+            input_root = cfg['paths']['input_folder']
+            sequences = [d for d in os.listdir(input_root) if os.path.isdir(os.path.join(input_root, d))]
+            sequences = [s for s in sequences if s.startswith("SNMOT")]
     elif cfg['settings'].get('sequences'): # se sequence non è definito negli argomenti, controlla nel file di config
         sequences = cfg['settings']['sequences']
     else:
@@ -103,7 +126,7 @@ def main():
     # --- FASE 3: EVALUATION ---
     if 'all' in args.step or 'eval' in args.step:
         evaluator = Evaluator(cfg)
-        print("\n📊 Avvio Valutazione (HOTA)...")
+        print("\n📊 Avvio Valutazione...")
         try:
             evaluator.evaluate(sequences)
         except Exception as e:

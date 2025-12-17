@@ -70,7 +70,7 @@ class BehaviorAnalyzer:
             data = np.empty((0, 6))
 
         if len(data) == 0:
-            print(f"⚠️ Nessun dato di tracking nel file. Genero file behaviour vuoto.")
+            print(f"⚠️ Nessun dato di tracking per {sequence_name}. Salto generazione behaviour.")
             open(output_file, 'w').close()
             return
 

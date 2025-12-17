@@ -18,11 +18,18 @@ class SoccerVisualizer:
         with open(self.roi_path, 'r') as f:
             self.roi_data = json.load(f)
 
+        # Palette colori stile TV
+        self.COLOR_ROI1 = (0, 0, 255)       # Rosso
+        self.COLOR_ROI2 = (255, 0, 0)       # Blu
+        self.COLOR_TEXT_BG = (40, 40, 40)   # Grigio scuro per background label
+        self.COLOR_TEXT = (255, 255, 255)   # Bianco
+
     def _get_color(self, id):
         """Genera un colore univoco per ogni ID"""
         if id not in self.colors:
             np.random.seed(int(id))
-            self.colors[id] = tuple(np.random.randint(0, 255, 3).tolist())
+            # Colori pastello/vivaci per i box, evitando colori troppo scuri
+            self.colors[id] = tuple(np.random.randint(50, 255, 3).tolist())
         return self.colors[id]
 
     def _load_tracking_data(self, filepath):
@@ -74,10 +81,37 @@ class SoccerVisualizer:
         h = int(roi_relative['height'] * img_h)
         return x, y, w, h
 
+    def _draw_transparent_box(self, img, pt1, pt2, color, alpha=0.4):
+        """Disegna un rettangolo con riempimento trasparente"""
+        overlay = img.copy()
+        cv2.rectangle(overlay, pt1, pt2, color, -1)
+        cv2.addWeighted(overlay, alpha, img, 1 - alpha, 0, img)
+
+    def _draw_stylish_tag(self, img, text, center_x, top_y, bg_color=(0,0,0)):
+        """Disegna una label centrata con sfondo trasparente sotto i piedi"""
+        font = cv2.FONT_HERSHEY_DUPLEX
+        font_scale = 0.5
+        thickness = 1
+        (text_w, text_h), baseline = cv2.getTextSize(text, font, font_scale, thickness)
+        
+        # Coordinate del box di sfondo
+        x1 = int(center_x - text_w // 2 - 4)
+        y1 = int(top_y)
+        x2 = int(center_x + text_w // 2 + 4)
+        y2 = int(top_y + text_h + 10)
+        
+        # Disegna sfondo trasparente
+        self._draw_transparent_box(img, (x1, y1), (x2, y2), bg_color, alpha=0.6)
+        
+        # Disegna testo
+        text_x = int(center_x - text_w // 2)
+        text_y = int(top_y + text_h + 5)
+        cv2.putText(img, text, (text_x, text_y), font, font_scale, self.COLOR_TEXT, thickness, cv2.LINE_AA)
+
     def generate_video(self, sequence_name):
         """Genera il video annotato per la sequenza data"""
         
-        # Costruzione percorsi
+        # Costruzione percorsi (LOGICA ORIGINALE)
         img_folder = os.path.join(self.config['paths']['input_folder'], sequence_name, "img1")
         output_dir = self.config['paths']['output_folder']
         team_id = self.config['settings']['team_id']
@@ -85,6 +119,7 @@ class SoccerVisualizer:
         track_file = os.path.join(output_dir, f"tracking_{sequence_name}_{team_id}.txt")
         behav_file = os.path.join(output_dir, f"behavior_{sequence_name}_{team_id}.txt")
         output_video_path = os.path.join(output_dir, f"video_{sequence_name}_{team_id}.mp4")
+        
         # Caricamento Dati
         tracks = self._load_tracking_data(track_file)
         behaviors = self._load_behavior_data(behav_file)
@@ -98,53 +133,72 @@ class SoccerVisualizer:
         # Setup Video Writer
         first_frame = cv2.imread(img_files[0])
         h_img, w_img, _ = first_frame.shape
-        fps = 25 # Standard per SoccerNet
+        fps = 25 
         out = cv2.VideoWriter(output_video_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w_img, h_img))
 
         # Recupero ROI per questa sequenza
-        roi1_rect = self._get_absolute_roi(self.roi_data['roi1'], w_img, h_img)
-        roi2_rect = self._get_absolute_roi(self.roi_data['roi2'], w_img, h_img)
+        # Nota: assumiamo roi_data['roi1'] esista come da specifica originale
+        roi1_rect = self._get_absolute_roi(self.roi_data['roi1'], w_img, h_img) if 'roi1' in self.roi_data else None
+        roi2_rect = self._get_absolute_roi(self.roi_data['roi2'], w_img, h_img) if 'roi2' in self.roi_data else None
 
         print(f"🎬 Rendering Video: {sequence_name} -> {output_video_path}")
 
         for i, img_path in enumerate(img_files):
             frame = cv2.imread(img_path)
-            frame_id = i + 1 # I file partono da 1 solitamente nel tracking
+            frame_id = i + 1 
+            
+            # --- 1. VISUALIZZAZIONE ROI (Sfondo) ---
+            # Recupera conteggi per il frame corrente
+            count1 = 0
+            count2 = 0
+            if frame_id in behaviors:
+                count1 = behaviors[frame_id].get(1, 0)
+                count2 = behaviors[frame_id].get(2, 0)
 
-            # 1. Disegna le ROI (Sfondo semi-trasparente opzionale o solo bordo)
+            # Disegna ROI 1 (Rosso)
             if roi1_rect:
                 rx, ry, rw, rh = roi1_rect
-                cv2.rectangle(frame, (rx, ry), (rx+rw, ry+rh), (0, 0, 255), 3) # Rosso per ROI 1
-                cv2.putText(frame, "ROI 1", (rx, ry-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0,0,255), 2)
-            
+                # Riempimento molto leggero
+                self._draw_transparent_box(frame, (rx, ry), (rx+rw, ry+rh), self.COLOR_ROI1, alpha=0.15)
+                # Bordo più solido
+                cv2.rectangle(frame, (rx, ry), (rx+rw, ry+rh), self.COLOR_ROI1, 2)
+                # Header ROI con conteggio
+                header_text = f"ROI 1 | Players: {count1}"
+                self._draw_stylish_tag(frame, header_text, rx + rw//2, ry - 25, bg_color=self.COLOR_ROI1)
+
+            # Disegna ROI 2 (Blu)
             if roi2_rect:
                 rx, ry, rw, rh = roi2_rect
-                cv2.rectangle(frame, (rx, ry), (rx+rw, ry+rh), (255, 0, 0), 3) # Blu per ROI 2
-                cv2.putText(frame, "ROI 2", (rx, ry-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255,0,0), 2)
+                self._draw_transparent_box(frame, (rx, ry), (rx+rw, ry+rh), self.COLOR_ROI2, alpha=0.15)
+                cv2.rectangle(frame, (rx, ry), (rx+rw, ry+rh), self.COLOR_ROI2, 2)
+                header_text = f"ROI 2 | Players: {count2}"
+                self._draw_stylish_tag(frame, header_text, rx + rw//2, ry - 25, bg_color=self.COLOR_ROI2)
 
-            # 2. Disegna i Tracking
+            # --- 2. TRACKING E ID GIOCATORI ---
             if frame_id in tracks:
                 for obj in tracks[frame_id]:
                     x, y, w, h = obj['bbox']
                     tid = obj['id']
                     color = self._get_color(tid)
                     
-                    # Box
-                    cv2.rectangle(frame, (x, y), (x+w, y+h), color, 2)
-                    # Label ID
-                    cv2.putText(frame, f"{tid}", (x, y-5), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+                    # Calcolo centro della base (piedi)
+                    feet_x = int(x + w / 2)
+                    feet_y = int(y + h)
 
-            # 3. Overlay Statistiche Behaviour (In alto a sinistra)
-            if frame_id in behaviors:
-                b_data = behaviors[frame_id]
-                count1 = b_data.get(1, 0) # Conteggio ROI 1
-                count2 = b_data.get(2, 0) # Conteggio ROI 2
-                
-                # Pannello info
-                cv2.rectangle(frame, (0, 0), (350, 100), (0,0,0), -1) # Sfondo nero
-                cv2.putText(frame, f"Frame: {frame_id}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255,255,255), 2)
-                cv2.putText(frame, f"ROI 1 (Red):  {count1}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,0,255), 2)
-                cv2.putText(frame, f"ROI 2 (Blue): {count2}", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255,0,0), 2)
+                    # Bounding Box (linea sottile per non coprire troppo)
+                    cv2.rectangle(frame, (x, y), (x+w, y+h), color, 2)
+                    
+                    # "Mirino" sui piedi (il punto tracciato)
+                    cv2.circle(frame, (feet_x, feet_y), 4, color, -1)
+                    cv2.circle(frame, (feet_x, feet_y), 5, (0,0,0), 1) # Bordo nero per contrasto
+
+                    # Label ID sotto i piedi
+                    # Posizionato leggermente sotto il punto dei piedi
+                    self._draw_stylish_tag(frame, f"ID {tid}", feet_x, feet_y + 8, bg_color=self.COLOR_TEXT_BG)
+
+            # --- 3. INFO GENERALI (Opzionale, in basso a destra o sinistra, meno invasivo) ---
+            info_text = f"Frame: {frame_id} | Total tracked: {len(tracks.get(frame_id, []))}"
+            cv2.putText(frame, info_text, (20, h_img - 20), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (200, 200, 200), 1)
 
             out.write(frame)
             if i % 100 == 0:
