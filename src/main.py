@@ -73,14 +73,12 @@ def main():
     parser.add_argument('--tracker_config', type=str, help='Path al file di configurazione del tracker (opzionale sovrascrittura)')
     parser.add_argument('--roi_config', type=str, help='Path al file di configurazione delle ROI (opzionale sovrascrittura)')
     
-    
     parser.add_argument('--imgsz', type=int, help='Sovrascrivi la risoluzione di input del tracker (es. 640, 960, 1088, 1280)')
     parser.add_argument('--conf', type=float, help='Sovrascrivi la confidenza minima del tracker (es. 0.25)')
     parser.add_argument('--iou', type=float, help='Sovrascrivi la soglia IOU del tracker (es. 0.7)')
     parser.add_argument('--batch', type=int, help='Sovrascrivi la dimensione del batch per il tracker (se supportato)')
     parser.add_argument('--show_video', action='store_true', help='Mostra il video di tracking in tempo reale durante l\'esecuzione', default=False)
     parser.add_argument('-hp', '--fp16', '--half', dest='half', help='Usa FP16 per il tracking (se supportato)', action='store_true', default=None)
-    
     
     parser.add_argument('-v', '--verbose', action='store_true', help='Abilita output verboso per il tracker', default=False)
     parser.add_argument('--debug', type=str, nargs='+', choices=['show_tracks', 'show_behaviour', 'none'], default=['none'],
