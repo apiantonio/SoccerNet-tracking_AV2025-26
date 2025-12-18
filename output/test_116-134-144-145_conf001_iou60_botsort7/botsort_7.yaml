@@ -2,8 +2,8 @@
 #       https://github.com/ultralytics/ultralytics/blob/main/ultralytics/cfg/trackers/botsort.yaml
 
 tracker_type: botsort     # (str) Tracker backend: botsort|bytetrack; choose botsort to enable BoT-SORT features
-track_high_thresh: 0.50   # (float) First-stage match threshold; raise for cleaner tracks, lower to keep more
-track_low_thresh: 0.001   # (float) Second-stage threshold for low-score matches; balances recovery vs drift
+track_high_thresh: 0.45   # (float) First-stage match threshold; raise for cleaner tracks, lower to keep more
+track_low_thresh: 0.0001  # (float) Second-stage threshold for low-score matches; balances recovery vs drift
 new_track_thresh: 0.55    # (float) Start a new track if no match ≥ this; higher reduces false tracks
 track_buffer: 180         # (int) Frames to keep lost tracks alive; higher handles occlusion, increases ID switches risk
 match_thresh: 0.75        # (float) Association similarity threshold (IoU/cost); tune with detector quality
@@ -20,11 +20,11 @@ model: auto               # (str) ReID model name/path; "auto" uses detector fea
 reid_model: models/osnet_x1_0_soccernet.pt #osnet_x1_0_msmt17.pt # (str) ReID model file; choose a lightweight model for speed
 
 # =================================================================================================================================
-# VALUTAZIONE AUTOMATICA - 2025-12-17 23:48:32
+# VALUTAZIONE AUTOMATICA - 2025-12-18 02:21:51
 # SEQUENCE        | HOTA    | DetA    | AssA    | nMAE    | TP     | FN     | FP     | TPA     | FNA     | FPA     |
 # ---------------------------------------------------------------------------------------------------------------------------------
-# SNMOT-142       |  49.94% |  72.11% |  34.59% |  88.25% | 7931   | 2372   | 696    | 1296429 | 2378819 | 469066  |
+# SNMOT-142       |  51.25% |  71.75% |  36.60% |  88.41% | 7963   | 2340   | 795    | 1377671 | 2316231 | 307129  |
 # ---------------------------------------------------------------------------------------------------------------------------------
-# GLOBAL/SUM      |  49.94% |  72.11% |  34.59% |  88.25% | 7931   | 2372   | 696    | 1296429 | 2378819 | 469066  |
-# PTBS (HOTA + nMAE)   |  1.3819
+# GLOBAL/SUM      |  51.25% |  71.75% |  36.60% |  88.41% | 7963   | 2340   | 795    | 1377671 | 2316231 | 307129  |
+# PTBS (HOTA + nMAE)   |  1.3965
 # ==================================================================================================================================

@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
 
+
+
 def apply_perspective_shrink(contour, image_shape, max_shrink_x=120, max_lift_y=80, border_thresh=10):
     """
     Restringe il contorno dinamicamente.
@@ -22,7 +24,7 @@ def apply_perspective_shrink(contour, image_shape, max_shrink_x=120, max_lift_y=
         x, y = point
         
         # --- LOGICA 1: Calcolo Fattore Y (Aggressività sul fondo) ---
-        # Usiamo una potenza cubica (3) invece di 1.5. 
+        # Usiamo una curva quadratica per aumentare l'effetto verso il fondo.
         # Questo significa che l'effetto è quasi nullo a metà campo e fortissimo solo alla fine.
         y_rel = y / h_img
         y_factor = y_rel ** 2 
@@ -57,76 +59,122 @@ def apply_perspective_shrink(contour, image_shape, max_shrink_x=120, max_lift_y=
 
 def get_field_mask(frame):
     """
-    Genera maschera del campo.
+    Genera maschera del campo con CLAHE e soglia adattiva.
     """
-    # 1. OTTIMIZZAZIONE: Ridimensiona il frame per calcoli veloci
-    # Lavorare su un'immagine più piccola velocizza inRange e findContours drasticamente
-    scale_factor = 0.5 #1.0
+    # 1. Resize per velocità
+    scale_factor = 1.0
     small_frame = cv2.resize(frame, (0, 0), fx=scale_factor, fy=scale_factor, interpolation=cv2.INTER_LINEAR)
     
-    # 2. Converti in HSV (sull'immagine piccola)
+    # 2. Converti in HSV
     hsv = cv2.cvtColor(small_frame, cv2.COLOR_BGR2HSV)
     
-    # Range del verde
+    # CLAHE
+    # Migliora il contrasto locale per gestire meglio ombre e nebbia.
+    # Separiamo i canali
+    h, s, v = cv2.split(hsv)
+    
+    # Creiamo l'oggetto CLAHE (Clip Limit evita di amplificare troppo il rumore)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    
+    # Applichiamo SOLO al canale V (Luminosità) per evitare di alterare i colori
+    v = clahe.apply(v)
+    
+    # Rimettiamo insieme l'immagine
+    hsv = cv2.merge((h, s, v))
+    
+    # Logica dinamica per soglia verde
     lower_green = np.array([35, 40, 40])
     upper_green = np.array([85, 255, 255])
     
+    h_img, w_img = hsv.shape[:2]
+    
+    # Campiona ROI in basso al centro
+    roi_y1 = int(h_img * 0.54)
+    roi_y2 = int(h_img * 0.875) # 1/3 che parte da 1/8 dal basso
+    roi_x1 = int(w_img * 0.17)
+    roi_x2 = int(w_img * 0.83) 
+    
+    roi = hsv[roi_y1:roi_y2, roi_x1:roi_x2]
+    
+    if roi.size > 0:
+        median_hsv = np.median(roi, axis=(0, 1))
+        
+        # Sanity check per verificare che sia verde, se no mantieni soglia fissa
+        if 30 < median_hsv[0] < 90:
+            tol_h = 20
+            tol_s = 60
+            tol_v = 80
+            
+            lower_green = np.array([
+                max(0, median_hsv[0] - tol_h),
+                max(20, median_hsv[1] - tol_s),
+                max(20, median_hsv[2] - tol_v)
+            ])
+            
+            upper_green = np.array([
+                min(180, median_hsv[0] + tol_h),
+                min(255, median_hsv[1] + tol_s),
+                min(255, median_hsv[2] + tol_v)
+            ])
+
+    # 3. Maschera
     mask = cv2.inRange(hsv, lower_green, upper_green)
     
-    # 3. SEPARAZIONE TABELLONI (Erosione)
-    # Prima di chiudere i buchi, erodiamo leggermente. Se il campo è attaccato 
-    # a un tabellone pubblicitario da una linea sottile, questo la spezza.
+    # 4. Pulizia
     kernel_erode = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
     mask = cv2.erode(mask, kernel_erode, iterations=1)
     
-    # 4. RIEMPIMENTO BUCHI (Closing)
-    # Ora che i tabelloni sono staccati, chiudiamo i buchi dentro il campo (giocatori)
-    kernel_close = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15)) # Kernel proporzionato al resize
+    kernel_close = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel_close)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel_close) # Rimuove rumore rimasto
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel_close)
     
-    # 5. Trova contorni
+    # 5. Contorni e Hull
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
     if not contours:
-        # Ritorna maschera nera size originale se fallisce
         return np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
         
     largest_contour = max(contours, key=cv2.contourArea)
-    
-    # 6. Convex Hull
     hull = cv2.convexHull(largest_contour)
     
-    # 7. RISCALA IL CONTORNO alle dimensioni originali
     hull = (hull * (1 / scale_factor)).astype(np.int32)
     
-    # 8. RESTRINGIMENTO PROSPETTICO INTELLIGENTE
-    # max_shrink_x: quanto stringere i lati (se non sono sul bordo video)
-    # max_lift_y: quanto alzare il fondo (taglio netto pista/panchine)
-    # border_thresh: tolleranza per considerare un punto "sul bordo video"
     hull = apply_perspective_shrink(
         hull, 
         frame.shape, 
-        max_shrink_x=150, 
-        max_lift_y=0, # Valore alto per tagliare bene il fondo sporco
+        max_shrink_x=130, 
+        max_lift_y=0, 
         border_thresh=15
     )
     
-    # Ricalcolo Hull finale per pulizia geometrica
     hull = cv2.convexHull(hull)
     
-    # Disegna sulla maschera a grandezza originale
     clean_mask = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
     cv2.drawContours(clean_mask, [hull], -1, 255, thickness=cv2.FILLED)
     
     return clean_mask
 
-def is_point_on_field(point, field_mask):
+def is_point_on_field(point, field_mask, bottom_tolerance=40):
     """
-    Controlla se un punto (x, y) è dentro la maschera del campo.
+    Controlla se un punto è nel campo.
+    Include una logica di sicurezza per il bordo inferiore.
+    
+    :param bottom_tolerance: Se il punto è negli ultimi N pixel in basso, 
+                             controlla la maschera un po' più in su.
     """
     x, y = int(point[0]), int(point[1])
     h, w = field_mask.shape
+    
+    # Clamp x per sicurezza
     x = max(0, min(x, w - 1))
+    
+    # Se il giocatore tocca il fondo spostiamo il punto di controllo verso l'alto per evitare falsi negativi
+    if y >= h - bottom_tolerance:
+        y_check = h - bottom_tolerance - 1
+        # Assicuriamoci di non andare sotto zero
+        y_check = max(0, y_check)
+        return field_mask[y_check, x] > 0
+
+    # Controllo standard per il resto dell'immagine
     y = max(0, min(y, h - 1))
     return field_mask[y, x] > 0

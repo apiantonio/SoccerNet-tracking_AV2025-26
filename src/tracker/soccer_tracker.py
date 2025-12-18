@@ -23,15 +23,20 @@ class SoccerTracker:
         self.conf = config['tracker']['conf']
         self.iou = config['tracker']['iou']
         self.batch_size = config['tracker']['batch']
+        self.use_field_mask = config['tracker'].get('field_mask', True)
 
         self.device = config['tracker']['device']
         self.output_folder = config['paths']['output_folder']
-        self.classes = config['tracker'].get('classes', [1,2,3])
+        self.classes = config['tracker'].get('classes', [0])
         self.verbose = config['tracker'].get('verbose', False)
         
         # Parametri per ottimizzazione memoria
-        self.imgsz = config['tracker'].get('imgsz', 960)
+        self.imgsz = config['tracker'].get('imgsz', 1088)
         self.half = config['tracker'].get('half', False)
+        
+        # Variabili di supporto
+        self._mask_frequency = config['tracker'].get('mask_frequency', 1)  # Numero di frame tra un aggiornamento della maschera
+        self._buffer_size = config['tracker'].get('buffer_size', 250)      # Numero di frame dopo i quali scrivere su file
         
         # Per debug mode
         debug_cfg = config.get('debug', False)
@@ -40,16 +45,14 @@ class SoccerTracker:
         self.debug = False
         self.show_track = False
         self.show_behaviour = False
-        ###TODO### 
-        self.show_mask_overlay = True
-        ########
-
+        self.show_mask_overlay = False
+       
         if isinstance(debug_cfg, dict):
             # Se arriva dal main.py processato (è un dizionario)
             self.debug = True
             self.show_track = debug_cfg.get('show_track', False)
             self.show_behaviour = debug_cfg.get('show_behaviour', False)
-            self.show_mask_overlay = True
+            self.show_mask_overlay = debug_cfg.get('show_mask', False)
             self.batch_size = 1 # altrimenti non funziona bene la visualizzazione
             self.color_cache = {} 
         elif debug_cfg is True:
@@ -123,6 +126,7 @@ class SoccerTracker:
         """
         Esegue il tracking. Se show_video=True usa lo stile del Visualizer.
         """
+
         source_path = os.path.join(self.config['paths']['input_folder'], sequence_name, "img1")
         output_dir = self.config['paths']['output_folder']
         os.makedirs(output_dir, exist_ok=True)
@@ -167,13 +171,20 @@ class SoccerTracker:
         
         try:
             with open(output_path, 'w') as f:
+                buffer = [] # Buffer per scrittura file
+                
                 for frame_idx, r in enumerate(results):
-                    # FIELD MASKING & FILTERING:
-                    # Genera la maschera del campo per il frame corrente
-                    # NOTA: Se è troppo lento, puoi considerare di ridimensionare 
-                    # l'immagine prima di calcolare la maschera o calcolarla ogni N frame.
-                    #if frame_idx % 25 == 0:  # Aggiorna la maschera ogni 1 secondi
-                    field_mask = get_field_mask(r.orig_img)
+                    
+                    if self.use_field_mask: # FIELD MASKING & FILTERING:
+                        # Genera la maschera del campo per il frame corrente
+                        # NOTA: Se è troppo lento, puoi considerare di ridimensionare 
+                        # l'immagine prima di calcolare la maschera o calcolarla ogni N frame.
+                        if frame_idx % self._mask_frequency == 0:  # Aggiorna la maschera ogni N frame
+                            field_mask = get_field_mask(r.orig_img)
+                    else:
+                        # Maschera piena (tutto il frame)
+                        h_img, w_img = r.orig_img.shape[:2]
+                        field_mask = np.ones((h_img, w_img), dtype=np.uint8) * 255
                     
                     # Liste per contenere solo i dati validi (dentro il campo)
                     valid_boxes_xywh = []
@@ -196,14 +207,14 @@ class SoccerTracker:
                             feet_point = (int((x1 + x2) / 2), int(y2))
                             
                             # Verifica se è nel campo usando la funzione di utils
-                            if is_point_on_field(feet_point, field_mask):
+                            if is_point_on_field(feet_point, field_mask, bottom_tolerance=40):
                                 valid_boxes_xywh.append(boxes_xywh[i])
                                 valid_boxes_xyxy.append(box)
                                 valid_ids.append(track_ids[i])
                                 valid_confs.append(confs[i])
                             else:
-                                # DEBUG: Puoi stampare se vuoi vedere chi viene escluso
-                                #print(f"ID {track_ids[i]} escluso (Fuori Campo)")
+                                # DEBUG: Punto del bounding box ignorato con z molto alta
+                                cv2.drawMarker(r.orig_img, feet_point, (0, 0, 255), markerType=cv2.MARKER_TILTED_CROSS, markerSize=10, thickness=2)
                                 pass
                     
                     # --- LOGICA VISUALIZZAZIONE "DEBUG MODE" ---
@@ -283,19 +294,25 @@ class SoccerTracker:
                         if cv2.waitKey(1) & 0xFF == ord('q'):
                             print(f"⏩ Skip sequence {sequence_name}...")
                             break
-                    # -----------------------------------------------
-                
+
                     if r.boxes is None or r.boxes.id is None:
                         continue
                     
-                    # Scrittura su file (Logica originale intatta)
+                    # Scrittura su file (bufferizzata)
                     for i, box in enumerate(valid_boxes_xywh):
                         track_id = valid_ids[i]
                         x, y, w, h = box
                         # Coordinate Top-Left come richiesto dal formato output
                         x1 = x - (w / 2)
                         y1 = y - (h / 2)
-                        f.write(f"{frame_idx + 1},{int(track_id)},{int(x1)},{int(y1)},{int(w)},{int(h)}\n")
+                        # Scrivi nel buffer
+                        buffer.append(f"{frame_idx + 1},{int(track_id)},{int(x1)},{int(y1)},{int(w)},{int(h)}\n")
+                    
+                    # Scrivi il buffer solo alla fine per evitare I/O frequenti
+                    if (frame_idx + 1) % self._buffer_size == 0:
+                        f.writelines(buffer)
+                        buffer.clear()
+                        f.flush()
         
         finally:
             if self.debug:
