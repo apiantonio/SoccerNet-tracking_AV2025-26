@@ -181,6 +181,11 @@ class SoccerTracker:
                         # l'immagine prima di calcolare la maschera o calcolarla ogni N frame.
                         if frame_idx % self._mask_frequency == 0:  # Aggiorna la maschera ogni N frame
                             field_mask = get_field_mask(r.orig_img)
+                            # Disegna la roi da cui la maschera è stata calcolata (per debug)
+                            if self.debug and self.show_mask_overlay:
+                                h_img, w_img = r.orig_img.shape[:2]
+                                roi_x1, roi_y1, roi_w, roi_h = self._get_absolute_roi({'x':REL_X1,'y':REL_Y1,'width':REL_X2-REL_X1,'height':REL_Y2-REL_Y1}, w_img, h_img)
+                                cv2.rectangle(r.orig_img, (roi_x1, roi_y1), (roi_x1 + roi_w, roi_y1 + roi_h), (255, 0, 255), 2)
                     else:
                         # Maschera piena (tutto il frame)
                         h_img, w_img = r.orig_img.shape[:2]

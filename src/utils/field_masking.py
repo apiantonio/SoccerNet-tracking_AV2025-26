@@ -1,7 +1,11 @@
 import cv2
 import numpy as np
 
-
+SCALE_FACTOR = 1.0  # Fattore di riduzione per il calcolo della maschera
+REL_X1 = 0.15  # Coordinate ROI per campionare il campo
+REL_X2 = 0.85
+REL_Y1 = 0.55
+REL_Y2 = 0.90
 
 def apply_perspective_shrink(contour, image_shape, max_shrink_x=120, max_lift_y=80, border_thresh=10):
     """
@@ -59,73 +63,79 @@ def apply_perspective_shrink(contour, image_shape, max_shrink_x=120, max_lift_y=
 
 def get_field_mask(frame):
     """
-    Genera maschera del campo con CLAHE e soglia adattiva.
+    Genera maschera del campo robusta a ombre e luci.
     """
-    # 1. Resize per velocità
-    scale_factor = 1.0
-    small_frame = cv2.resize(frame, (0, 0), fx=scale_factor, fy=scale_factor, interpolation=cv2.INTER_LINEAR)
+    # 1. SCALE FACTOR: Mantenerlo a 0.5 è cruciale per le performance morfologiche.
+    # Se lo metti a 1.0, dovresti raddoppiare le dimensioni dei kernel (es. (30,30))
+    small_frame = cv2.resize(frame, (0, 0), fx=SCALE_FACTOR, fy=SCALE_FACTOR, interpolation=cv2.INTER_LINEAR)
     
     # 2. Converti in HSV
     hsv = cv2.cvtColor(small_frame, cv2.COLOR_BGR2HSV)
     
-    # CLAHE
-    # Migliora il contrasto locale per gestire meglio ombre e nebbia.
-    # Separiamo i canali
+    # CLAHE sul canale V (Luminosità)
+    # Aiuta a "schiarire" le ombre profonde prima della sogliatura
     h, s, v = cv2.split(hsv)
-    
-    # Creiamo l'oggetto CLAHE (Clip Limit evita di amplificare troppo il rumore)
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-    
-    # Applichiamo SOLO al canale V (Luminosità) per evitare di alterare i colori
+    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8)) # ClipLimit alzato leggermente
     v = clahe.apply(v)
-    
-    # Rimettiamo insieme l'immagine
     hsv = cv2.merge((h, s, v))
     
-    # Logica dinamica per soglia verde
-    lower_green = np.array([35, 40, 40])
+    # Calcola intervallo verde dinamico
+    lower_green = np.array([35, 40, 20]) # V basso di default
     upper_green = np.array([85, 255, 255])
     
     h_img, w_img = hsv.shape[:2]
     
-    # Campiona ROI in basso al centro
-    roi_y1 = int(h_img * 0.54)
-    roi_y2 = int(h_img * 0.875) # 1/3 che parte da 1/8 dal basso
-    roi_x1 = int(w_img * 0.17)
-    roi_x2 = int(w_img * 0.83) 
+    # ROI: Campiona il campo
+    roi_y1 = int(h_img * REL_Y1)
+    roi_y2 = int(h_img * REL_Y2)
+    roi_x1 = int(w_img * REL_X1)
+    roi_x2 = int(w_img * REL_X2)
     
     roi = hsv[roi_y1:roi_y2, roi_x1:roi_x2]
     
     if roi.size > 0:
         median_hsv = np.median(roi, axis=(0, 1))
         
-        # Sanity check per verificare che sia verde, se no mantieni soglia fissa
+        # Sanity check per controllare se il campo è verde
         if 30 < median_hsv[0] < 90:
+            # Tonalità (H): Stretta attorno alla mediana per non prendere altri colori
             tol_h = 20
-            tol_s = 60
-            tol_v = 80
+            
+            # Saturazione (S): Abbastanza larga per gestire zone sbiadite
+            tol_s = 70
+            
+            # Luminosità (V): QUI STA IL TRUCCO PER LE OMBRE.
+            # Non usiamo la tolleranza sulla mediana per V.
+            # Impostiamo un range fisso molto ampio.
+            # Min: 20 (quasi nero, per prendere le ombre scure)
+            # Max: 255 (bianco, per prendere le zone al sole pieno)
+            # L'idea è: "Se la Tinta è verde, non mi importa se è scuro o chiaro".
             
             lower_green = np.array([
                 max(0, median_hsv[0] - tol_h),
-                max(20, median_hsv[1] - tol_s),
-                max(20, median_hsv[2] - tol_v)
+                max(20, median_hsv[1] - tol_s), # S minima 20 per evitare grigi
+                20  # V minima fissa e bassa (accetta ombre)
             ])
             
             upper_green = np.array([
                 min(180, median_hsv[0] + tol_h),
                 min(255, median_hsv[1] + tol_s),
-                min(255, median_hsv[2] + tol_v)
+                255 # V massima fissa (accetta sole)
             ])
 
     # 3. Maschera
     mask = cv2.inRange(hsv, lower_green, upper_green)
     
-    # 4. Pulizia
-    kernel_erode = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+    # 4. Pulizia Morfologica
+    kernel_scale = int(SCALE_FACTOR*2) # Adatta i kernel alla scala ridotta (es. 0.5 -> kernel normale, 1.0 -> kernel*2)
+    
+    kernel_erode = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_scale*3, kernel_scale*3))
     mask = cv2.erode(mask, kernel_erode, iterations=1)
     
-    kernel_close = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
+    # Closing per chiudere i giocatori (buchi)
+    kernel_close = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_scale*15, kernel_scale*15))
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel_close)
+    # Open per rimuovere rumore esterno (spalti)
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel_close)
     
     # 5. Contorni e Hull
@@ -137,8 +147,10 @@ def get_field_mask(frame):
     largest_contour = max(contours, key=cv2.contourArea)
     hull = cv2.convexHull(largest_contour)
     
-    hull = (hull * (1 / scale_factor)).astype(np.int32)
+    # Riportiamo alla scala originale
+    hull = (hull * (1 / SCALE_FACTOR)).astype(np.int32)
     
+    # Shrink prospettico
     hull = apply_perspective_shrink(
         hull, 
         frame.shape, 
