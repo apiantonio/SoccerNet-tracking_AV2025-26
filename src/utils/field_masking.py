@@ -4,7 +4,9 @@ import numpy as np
 SCALE_FACTOR = 1.0  # Fattore di riduzione per il calcolo della maschera
 REL_X1 = 0.15  # Coordinate ROI per campionare il campo
 REL_X2 = 0.85
-REL_Y1 = 0.55
+REL_X3 = 0.40
+REL_X4 = 0.60
+REL_Y1 = 0.50
 REL_Y2 = 0.90
 
 def apply_perspective_shrink(contour, image_shape, max_shrink_x=120, max_lift_y=80, border_thresh=10):
@@ -79,63 +81,71 @@ def get_field_mask(frame):
     v = clahe.apply(v)
     hsv = cv2.merge((h, s, v))
     
-    # Calcola intervallo verde dinamico
-    lower_green = np.array([35, 40, 20]) # V basso di default
+    # --- LOGICA ROI TRAPEZOIDALE ---
+    # Creiamo una maschera binaria per definire DOVE campionare il colore
+    h_img, w_img = hsv.shape[:2]
+    roi_mask = np.zeros((h_img, w_img), dtype=np.uint8)
+    
+    # Definiamo i 4 punti del trapezio (coordinate relative alla dimensione ridotta)
+    # Lato corto in basso (per evitare pista/pubblicità negli angoli bassi)
+    # Lato lungo in alto (per prendere più campo possibile)
+    
+    # Top-Left e Top-Right (più larghi, es. 15% - 85% width)
+    tl = (int(w_img * REL_X1), int(h_img * REL_Y1)) 
+    tr = (int(w_img * REL_X2), int(h_img * REL_Y1))
+    
+    # Bottom-Right e Bottom-Left (più stretti, es. 30% - 70% width)
+    # Questo evita gli angoli in basso a sinistra/destra
+    bl = (int(w_img * REL_X3), int(h_img * REL_Y2))
+    br = (int(w_img * REL_X4), int(h_img * REL_Y2))
+    
+    pts = np.array([tl, tr, br, bl], dtype=np.int32)
+    cv2.fillPoly(roi_mask, [pts], 255)
+    
+    # Estraiamo i pixel che cadono dentro il trapezio
+    # hsv[roi_mask > 0] restituisce un array (N, 3) di pixel
+    roi_pixels = hsv[roi_mask > 0]
+    
+    # Valori di default (fallback)
+    lower_green = np.array([35, 40, 20])
     upper_green = np.array([85, 255, 255])
     
-    h_img, w_img = hsv.shape[:2]
-    
-    # ROI: Campiona il campo
-    roi_y1 = int(h_img * REL_Y1)
-    roi_y2 = int(h_img * REL_Y2)
-    roi_x1 = int(w_img * REL_X1)
-    roi_x2 = int(w_img * REL_X2)
-    
-    roi = hsv[roi_y1:roi_y2, roi_x1:roi_x2]
-    
-    if roi.size > 0:
-        median_hsv = np.median(roi, axis=(0, 1))
+    if roi_pixels.size > 0:
+        # Calcoliamo la mediana su tutti i pixel del trapezio
+        median_hsv = np.median(roi_pixels, axis=0)
         
-        # Sanity check per controllare se il campo è verde
+        # Sanity check: è verde?
         if 30 < median_hsv[0] < 90:
-            # Tonalità (H): Stretta attorno alla mediana per non prendere altri colori
             tol_h = 20
-            
-            # Saturazione (S): Abbastanza larga per gestire zone sbiadite
             tol_s = 70
             
-            # Luminosità (V): QUI STA IL TRUCCO PER LE OMBRE.
-            # Non usiamo la tolleranza sulla mediana per V.
-            # Impostiamo un range fisso molto ampio.
-            # Min: 20 (quasi nero, per prendere le ombre scure)
-            # Max: 255 (bianco, per prendere le zone al sole pieno)
-            # L'idea è: "Se la Tinta è verde, non mi importa se è scuro o chiaro".
-            
+            # Logica "Shadow-Safe": 
+            # Hue stretto, Saturation larga, Value COMPLETO (20-255) per accettare sole e ombra.
             lower_green = np.array([
                 max(0, median_hsv[0] - tol_h),
-                max(20, median_hsv[1] - tol_s), # S minima 20 per evitare grigi
-                20  # V minima fissa e bassa (accetta ombre)
+                max(20, median_hsv[1] - tol_s),
+                20  # V min fissa bassa (ombre)
             ])
             
             upper_green = np.array([
                 min(180, median_hsv[0] + tol_h),
                 min(255, median_hsv[1] + tol_s),
-                255 # V massima fissa (accetta sole)
+                255 # V max fissa alta (sole)
             ])
 
     # 3. Maschera
     mask = cv2.inRange(hsv, lower_green, upper_green)
     
-    # 4. Pulizia Morfologica
-    kernel_scale = int(SCALE_FACTOR*2) # Adatta i kernel alla scala ridotta (es. 0.5 -> kernel normale, 1.0 -> kernel*2)
+    # 4. Pulizia Morfologica (Dinamica in base allo SCALE_FACTOR)
+    base_morph_size = 30 # Dimensione base
+    k_size = max(3, int(base_morph_size * SCALE_FACTOR))
     
-    kernel_erode = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_scale*3, kernel_scale*3))
-    mask = cv2.erode(mask, kernel_erode, iterations=1)
+    # Erode piccolo per staccare elementi
+    mask = cv2.erode(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)), iterations=1)
     
-    # Closing per chiudere i giocatori (buchi)
-    kernel_close = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_scale*15, kernel_scale*15))
+    # Close grande per chiudere i giocatori
+    kernel_close = cv2.getStructuringElement(cv2.MORPH_RECT, (k_size, k_size))
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel_close)
-    # Open per rimuovere rumore esterno (spalti)
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel_close)
     
     # 5. Contorni e Hull
@@ -155,7 +165,7 @@ def get_field_mask(frame):
         hull, 
         frame.shape, 
         max_shrink_x=130, 
-        max_lift_y=0, 
+        max_lift_y=40, 
         border_thresh=15
     )
     

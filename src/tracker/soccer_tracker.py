@@ -183,9 +183,14 @@ class SoccerTracker:
                             field_mask = get_field_mask(r.orig_img)
                             # Disegna la roi da cui la maschera è stata calcolata (per debug)
                             if self.debug and self.show_mask_overlay:
-                                h_img, w_img = r.orig_img.shape[:2]
-                                roi_x1, roi_y1, roi_w, roi_h = self._get_absolute_roi({'x':REL_X1,'y':REL_Y1,'width':REL_X2-REL_X1,'height':REL_Y2-REL_Y1}, w_img, h_img)
-                                cv2.rectangle(r.orig_img, (roi_x1, roi_y1), (roi_x1 + roi_w, roi_y1 + roi_h), (255, 0, 255), 2)
+                                tl = (int(r.orig_img.shape[1] * REL_X1), int(r.orig_img.shape[0] * REL_Y1))
+                                tr = (int(r.orig_img.shape[1] * REL_X2), int(r.orig_img.shape[0] * REL_Y1))
+                                bl = (int(r.orig_img.shape[1] * REL_X3), int(r.orig_img.shape[0] * REL_Y2))
+                                br = (int(r.orig_img.shape[1] * REL_X4), int(r.orig_img.shape[0] * REL_Y2))
+                                cv2.line(r.orig_img, tl, tr, (255, 0, 0), 2)
+                                cv2.line(r.orig_img, tr, br, (255, 0, 0), 2)
+                                cv2.line(r.orig_img, br, bl, (255, 0, 0), 2)
+                                cv2.line(r.orig_img, bl, tl, (255, 0, 0), 2)
                     else:
                         # Maschera piena (tutto il frame)
                         h_img, w_img = r.orig_img.shape[:2]
