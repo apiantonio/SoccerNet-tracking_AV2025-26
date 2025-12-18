@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-SCALE_FACTOR = 1.0  # Fattore di riduzione per il calcolo della maschera
+SCALE_FACTOR = 0.5  # Fattore di riduzione per il calcolo della maschera
 REL_X1 = 0.15  # Coordinate ROI per campionare il campo
 REL_X2 = 0.85
 REL_X3 = 0.40
@@ -107,7 +107,7 @@ def get_field_mask(frame):
     roi_pixels = hsv[roi_mask > 0]
     
     # Valori di default (fallback)
-    lower_green = np.array([35, 40, 20])
+    lower_green = np.array([35, 45, 20])
     upper_green = np.array([85, 255, 255])
     
     if roi_pixels.size > 0:
@@ -116,14 +116,14 @@ def get_field_mask(frame):
         
         # Sanity check: è verde?
         if 30 < median_hsv[0] < 90:
-            tol_h = 20
+            tol_h = 18
             tol_s = 70
             
             # Logica "Shadow-Safe": 
             # Hue stretto, Saturation larga, Value COMPLETO (20-255) per accettare sole e ombra.
             lower_green = np.array([
                 max(0, median_hsv[0] - tol_h),
-                max(20, median_hsv[1] - tol_s),
+                max(45, median_hsv[1] - tol_s),
                 20  # V min fissa bassa (ombre)
             ])
             
@@ -136,6 +136,15 @@ def get_field_mask(frame):
     # 3. Maschera
     mask = cv2.inRange(hsv, lower_green, upper_green)
     
+    # Rimozione del bianco per i cartelloni e altre superfici riflettenti
+    lower_white = np.array([0, 0, 180])   
+    upper_white = np.array([180, 60, 255])
+    white_mask = cv2.inRange(hsv, lower_white, upper_white)
+    
+    # Sottraiamo i bianchi dalla maschera verde
+    # (bitwise_not inverte white_mask, bitwise_and tiene solo ciò che è Verde E NON Bianco)
+    mask = cv2.bitwise_and(mask, cv2.bitwise_not(white_mask))
+    
     # 4. Pulizia Morfologica (Dinamica in base allo SCALE_FACTOR)
     base_morph_size = 30 # Dimensione base
     k_size = max(3, int(base_morph_size * SCALE_FACTOR))
@@ -143,7 +152,7 @@ def get_field_mask(frame):
     # Erode piccolo per staccare elementi
     mask = cv2.erode(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)), iterations=1)
     
-    # Close grande per chiudere i giocatori
+    # Close grande per chiudere i giocatori e le linee bianche
     kernel_close = cv2.getStructuringElement(cv2.MORPH_RECT, (k_size, k_size))
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel_close)
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel_close)
