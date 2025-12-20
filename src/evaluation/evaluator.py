@@ -259,11 +259,11 @@ class Evaluator:
             "tracker_config": tracker_effective_config,
             
             "metrics_overall": {
-                "HOTA_05": round(float(avg_hota), 4),
-                "DetA": round(float(avg_deta), 4),
-                "AssA": round(float(avg_assa), 4),
-                "nMAE": round(float(global_nmae), 4),
-                "PTBS": round(float(final_ptbs), 4),
+                "HOTA_05": round(float(avg_hota), 6),
+                "DetA": round(float(avg_deta), 6),
+                "AssA": round(float(avg_assa), 6),
+                "nMAE": round(float(global_nmae), 6),
+                "PTBS": round(float(final_ptbs), 6),
                 "counts_sum": global_raw_counts # Totali globali di TP, FN, FP...
             },
             
@@ -294,11 +294,11 @@ class Evaluator:
                     f.write(f"# {'-' * 129}\n")
                     
                     for res in results_list:
-                        f.write(f"# {res['seq']:<15} | {res['hota']*100:6.2f}% | {res['deta']*100:6.2f}% | {res['assa']*100:6.2f}% | {res['nmae']*100:6.2f}% | {res['TP']:<6} | {res['FN']:<6} | {res['FP']:<6} | {res['TPA']:<7} | {res['FNA']:<7} | {res['FPA']:<7} |\n")
+                        f.write(f"# {res['seq']:<15} | {res['hota']*100:.6f}% | {res['deta']*100:.6f}% | {res['assa']*100:.6f}% | {res['nmae']*100:.6f}% | {res['TP']:<6} | {res['FN']:<6} | {res['FP']:<6} | {res['TPA']:<7} | {res['FNA']:<7} | {res['FPA']:<7} |\n")
                     
                     f.write(f"# {'-' * 129}\n")
-                    f.write(f"# {'GLOBAL/SUM':<15} | {avg_hota * 100:6.2f}% | {avg_deta * 100:6.2f}% | {avg_assa * 100:6.2f}% | {global_nmae * 100:6.2f}% | {global_raw_counts['TP']:<6} | {global_raw_counts['FN']:<6} | {global_raw_counts['FP']:<6} | {global_raw_counts['TPA']:<7} | {global_raw_counts['FNA']:<7} | {global_raw_counts['FPA']:<7} |\n")
-                    f.write(f"# {'PTBS (HOTA + nMAE)':<20} | {final_ptbs:7.4f}\n")
+                    f.write(f"# {'GLOBAL/SUM':<15} | {avg_hota * 100:.6f}% | {avg_deta * 100:.6f}% | {avg_assa * 100:.6f}% | {global_nmae * 100:.6f}% | {global_raw_counts['TP']:<6} | {global_raw_counts['FN']:<6} | {global_raw_counts['FP']:<6} | {global_raw_counts['TPA']:<7} | {global_raw_counts['FNA']:<7} | {global_raw_counts['FPA']:<7} |\n")
+                    f.write(f"# {'PTBS (HOTA + nMAE)':<20} | {final_ptbs:.6f}\n")
                     f.write("# " + "=" * 130 + "\n")
                 print(f"📝 Report TXT aggiunto a: {saved_cfg_path}")
             except Exception as e: print(f"⚠️ Errore TXT: {e}")
@@ -437,11 +437,11 @@ class Evaluator:
             # Accumulo dati per il report
             res_entry = {
                 'seq':  seq,
-                'hota': round(hota, 4),
-                'deta': round(deta, 4),
-                'assa': round(assa, 4),
-                'nmae': round(local_nmae, 4),
-                'ptbs': round(ptbs_local, 4),
+                'hota': round(hota, 6),
+                'deta': round(deta, 6),
+                'assa': round(assa, 6),
+                'nmae': round(local_nmae, 6),
+                'ptbs': round(ptbs_local, 6),
                 # Raw counts
                 'TP': tp, 'FN': fn, 'FP': fp,
                 'TPA': int(tpa), 'FNA': int(fna), 'FPA': int(fpa)
@@ -449,7 +449,7 @@ class Evaluator:
             sequence_results.append(res_entry)
 
             # Stampa riga
-            print(f"{seq:<15} | {hota*100:6.2f}% | {deta*100:6.2f}% | {assa*100:6.2f}% | {local_nmae*100:6.2f}% | {tp:<6} | {fn:<6} | {fp:<6} | {int(tpa):<7} | {int(fna):<7} | {int(fpa):<7} |")
+            print(f"{seq:<15} | {hota*100:.6f}% | {deta*100:.6}% | {assa*100:.6f}% | {local_nmae*100:.6f}% | {tp:<6} | {fn:<6} | {fp:<6} | {int(tpa):<7} | {int(fna):<7} | {int(fpa):<7} |")
 
         print("-" * 130)
         
@@ -467,7 +467,7 @@ class Evaluator:
         final_ptbs = avg_hota + global_nmae
         
         # Stampa riga globale
-        print(f"{'MEAN/GLOBAL':<15} | {avg_hota * 100:6.2f}% | {avg_deta * 100:6.2f}% | {avg_assa * 100:6.2f}% | {global_nmae * 100:6.2f}% | {global_raw['TP']:<6} | {global_raw['FN']:<6} | {global_raw['FP']:<6} | {global_raw['TPA']:<7} | {global_raw['FNA']:<7} | {global_raw['FPA']:<7} |")
+        print(f"{'MEAN/GLOBAL':<15} | {avg_hota * 100:.6f}% | {avg_deta * 100:.6f}% | {avg_assa * 100:.6f}% | {global_nmae * 100:.6f}% | {global_raw['TP']:<6} | {global_raw['FN']:<6} | {global_raw['FP']:<6} | {global_raw['TPA']:<7} | {global_raw['FNA']:<7} | {global_raw['FPA']:<7} |")
         print(f"{'PTBS':<15} | {final_ptbs:7.4f}")
         print("="*130 + "\n")
         

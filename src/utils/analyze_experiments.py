@@ -78,6 +78,7 @@ def load_experiments(output_folder):
                 "Buffer": algo_conf.get("track_buffer", "N/A"),
                 "High_Th": algo_conf.get("track_high_thresh", "N/A"),
                 "Low_Th": algo_conf.get("track_low_thresh", "N/A"),
+                "New_Th": algo_conf.get("new_track_thresh", "N/A"),
                 "Match_Th": algo_conf.get("match_thresh", "N/A"),
                 "Fuse": algo_conf.get("fuse_score", "N/A"),
                 "ReID": algo_conf.get("with_reid", False),
@@ -152,19 +153,19 @@ def main():
 
     # 5. Visualizzazione
     print(f"\n🏆 TOP {args.top} ESPERIMENTI (Ordinati per: {valid_sort_cols})")
-    print("=" * 15)
+    print("=" * 160)
     
     pd.set_option('display.max_columns', None)
     pd.set_option('display.width', 1000)
     
-    cols_to_show = ["Filename", "# Seq", "PTBS", "HOTA_05", "nMAE", "DetA", "AssA", "TP", "FN", "FP", "Imgsz", "Conf", "IoU", "Buffer", "High_Th", "Low_Th", "Match_Th", "ReID"]
+    cols_to_show = ["Filename", "# Seq", "PTBS", "HOTA_05", "nMAE", "DetA", "AssA", "Imgsz", "Conf", "IoU", "Buffer", "High_Th", "Low_Th", "New_Th", "Match_Th", "ReID"]
     
     # Filtriamo per mostrare solo le colonne che esistono davvero nel DF (sicurezza)
     existing_cols = [c for c in cols_to_show if c in top_df.columns]
     
     print(top_df[existing_cols].to_string(index=False))
     
-    print("=" * 145)
+    print("=" * 160)
 
     # 6. Export CSV
     if args.csv:

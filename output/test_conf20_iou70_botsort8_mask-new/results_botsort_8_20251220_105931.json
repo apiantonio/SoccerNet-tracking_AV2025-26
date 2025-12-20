@@ -1,0 +1,90 @@
+{
+    "meta": {
+        "timestamp": "20251220_105931",
+        "tracker_config": "botsort_8",
+        "team_id": "16"
+    },
+    "main_config": {
+        "paths": {
+            "input_folder": "./tracking/test",
+            "output_folder": ".\\output\\test_conf20_iou70_botsort8_mask-new",
+            "detection_model": "models/yolo11x.pt",
+            "reid_model": "osnet_x0_25_msmt17.pt",
+            "tracker_config": ".\\configs\\botsort_8.yaml",
+            "roi_config": "configs/roi_config.json"
+        },
+        "settings": {
+            "team_id": "16",
+            "sequences": [
+                "SNMOT-060"
+            ]
+        },
+        "tracker": {
+            "imgsz": 1088,
+            "conf": 0.2,
+            "iou": 0.7,
+            "batch": 16,
+            "device": 0,
+            "half": false,
+            "classes": [
+                0
+            ],
+            "verbose": false,
+            "field_mask": true,
+            "mask_frequency": 1,
+            "buffer_size": 250
+        },
+        "behavior": null,
+        "debug": {
+            "show_track": true,
+            "show_mask": true,
+            "show_behaviour": false
+        }
+    },
+    "tracker_config": {
+        "tracker_type": "botsort",
+        "track_high_thresh": 0.35,
+        "track_low_thresh": 0.2,
+        "new_track_thresh": 0.4,
+        "track_buffer": 150,
+        "match_thresh": 0.9,
+        "fuse_score": true,
+        "gmc_method": "sparseOptFlow",
+        "with_reid": false,
+        "proximity_thresh": 0.5,
+        "appearance_thresh": 0.2,
+        "model": "auto",
+        "reid_model": "models/osnet_x1_0_soccernet.pt"
+    },
+    "metrics_overall": {
+        "HOTA_05": 0.037384,
+        "DetA": 0.027705,
+        "AssA": 0.050444,
+        "nMAE": 0.6506,
+        "PTBS": 0.687984,
+        "counts_sum": {
+            "TP": 286,
+            "FN": 9949,
+            "FP": 88,
+            "TPA": 7436,
+            "FNA": 141102,
+            "FPA": 0
+        }
+    },
+    "metrics_per_sequence": [
+        {
+            "seq": "150",
+            "hota": 0.037384,
+            "deta": 0.027705,
+            "assa": 0.050444,
+            "nmae": 0.6506,
+            "ptbs": 0.687984,
+            "TP": 286,
+            "FN": 9949,
+            "FP": 88,
+            "TPA": 7436,
+            "FNA": 141102,
+            "FPA": 0
+        }
+    ]
+}

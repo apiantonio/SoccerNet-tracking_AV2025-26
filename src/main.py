@@ -119,13 +119,13 @@ def main():
         if sequences == ['all']:
             input_root = cfg['paths']['input_folder']
             sequences = [d for d in os.listdir(input_root) if os.path.isdir(os.path.join(input_root, d))]
-            sequences = [s for s in sequences if s.startswith("SNMOT")]
+            sequences = [s for s in sequences] #if s.startswith("SNMOT")]
     elif cfg['settings'].get('sequences'): # se sequence non è definito negli argomenti, controlla nel file di config
         sequences = cfg['settings']['sequences']
     else:
         input_root = cfg['paths']['input_folder']
         sequences = [d for d in os.listdir(input_root) if os.path.isdir(os.path.join(input_root, d))]
-        sequences = [s for s in sequences if s.startswith("SNMOT")]
+        sequences = [s for s in sequences]# if s.startswith("SNMOT")]
 
     print(f"📋 Configurazione caricata. Step: {args.step}")
     print(f"📂 Sequenze target: {sequences}")
@@ -134,11 +134,14 @@ def main():
     
     # --- FASE 1: TRACKING ---
     start_tracking_time = time.time()
+    elapsed_tracking_time = 0
     if 'all' in args.step or 'tracking' in args.step:
         tracker = SoccerTracker(cfg)
         for seq in sequences:
             try:
                 tracker.track_sequence(seq)
+                elapsed_tracking_time = time.time() - start_tracking_time
+                print(f"  Tempo finora: {elapsed_tracking_time}")
             except Exception as e:
                 print(f"❌ Errore tracking su {seq}: {e}")
         end_tracking_time = time.time()

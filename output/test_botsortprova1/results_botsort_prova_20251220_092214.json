@@ -1,0 +1,84 @@
+{
+    "meta": {
+        "timestamp": "20251220_092214",
+        "tracker_config": "botsort_prova",
+        "team_id": "16"
+    },
+    "main_config": {
+        "paths": {
+            "input_folder": "/content/drive/Shareddrives/AV_ProjectWork/tracking/test",
+            "output_folder": "./output/test_botsortprova1",
+            "detection_model": "models/yolo11x.pt",
+            "reid_model": "osnet_x0_25_msmt17.pt",
+            "tracker_config": "./configs/botsort_prova.yaml",
+            "roi_config": "configs/roi_config.json"
+        },
+        "settings": {
+            "team_id": "16",
+            "sequences": [
+                "SNMOT-060"
+            ]
+        },
+        "tracker": {
+            "imgsz": 1088,
+            "conf": 0.2,
+            "iou": 0.7,
+            "batch": 16,
+            "device": 0,
+            "half": false,
+            "classes": [
+                0
+            ],
+            "verbose": false
+        },
+        "behavior": null,
+        "debug": false
+    },
+    "tracker_config": {
+        "tracker_type": "botsort",
+        "track_high_thresh": 0.35,
+        "track_low_thresh": 0.2,
+        "new_track_thresh": 0.35,
+        "track_buffer": 200,
+        "match_thresh": 0.9,
+        "fuse_score": true,
+        "gmc_method": "sparseOptFlow",
+        "cmc_method": "sparseOptFlow",
+        "with_reid": false,
+        "proximity_thresh": 0.75,
+        "appearance_thresh": 0.2,
+        "model": "auto",
+        "reid_model": "osnet_x0_25_msmt17.pt"
+    },
+    "metrics_overall": {
+        "HOTA_05": 0.7792,
+        "DetA": 0.8959,
+        "AssA": 0.6777,
+        "nMAE": 0.9613,
+        "PTBS": 1.7405,
+        "counts_sum": {
+            "TP": 9208,
+            "FN": 622,
+            "FP": 448,
+            "TPA": 3352340,
+            "FNA": 1671292,
+            "FPA": 134714
+        }
+    },
+    "metrics_per_sequence": [
+        {
+            "seq": "SNMOT-126",
+            "hota": 0.7792,
+            "deta": 0.8959,
+            "assa": 0.6777,
+            "nmae": 0.9613,
+            "ptbs": 1.7405,
+            "TP": 9208,
+            "FN": 622,
+            "FP": 448,
+            "TPA": 3352340,
+            "FNA": 1671292,
+            "FPA": 134714
+        }
+    ]
+}

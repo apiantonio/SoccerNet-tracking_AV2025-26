@@ -3,6 +3,7 @@ import cv2
 import json
 import numpy as np
 import glob
+from utils.field_masking import get_field_mask, is_point_on_field # Importata anche la funzione di verifica
 
 class SoccerVisualizer:
     def __init__(self, config):
@@ -137,7 +138,6 @@ class SoccerVisualizer:
         out = cv2.VideoWriter(output_video_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w_img, h_img))
 
         # Recupero ROI per questa sequenza
-        # Nota: assumiamo roi_data['roi1'] esista come da specifica originale
         roi1_rect = self._get_absolute_roi(self.roi_data['roi1'], w_img, h_img) if 'roi1' in self.roi_data else None
         roi2_rect = self._get_absolute_roi(self.roi_data['roi2'], w_img, h_img) if 'roi2' in self.roi_data else None
 
@@ -147,7 +147,13 @@ class SoccerVisualizer:
             frame = cv2.imread(img_path)
             frame_id = i + 1 
             
-            # --- 1. VISUALIZZAZIONE ROI (Sfondo) ---
+            # Calcola la maschera per il frame corrente
+            field_mask = get_field_mask(frame)
+            # Estrai i contorni dalla maschera
+            contours, _ = cv2.findContours(field_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            # Disegna il contorno in Verde Lime (BGR: 0, 255, 0)
+            cv2.drawContours(frame, contours, -1, (0, 255, 0), 2)
+
             # Recupera conteggi per il frame corrente
             count1 = 0
             count2 = 0
@@ -179,24 +185,37 @@ class SoccerVisualizer:
                 for obj in tracks[frame_id]:
                     x, y, w, h = obj['bbox']
                     tid = obj['id']
-                    color = self._get_color(tid)
                     
                     # Calcolo centro della base (piedi)
                     feet_x = int(x + w / 2)
                     feet_y = int(y + h)
-
-                    # Bounding Box (linea sottile per non coprire troppo)
-                    cv2.rectangle(frame, (x, y), (x+w, y+h), color, 2)
                     
-                    # "Mirino" sui piedi (il punto tracciato)
-                    cv2.circle(frame, (feet_x, feet_y), 4, color, -1)
-                    cv2.circle(frame, (feet_x, feet_y), 5, (0,0,0), 1) # Bordo nero per contrasto
+                    # --- NUOVA LOGICA: Controllo Maschera ---
+                    # Verifica se il giocatore è "in campo" secondo la maschera corrente.
+                    # Nota: Uso bottom_tolerance=40 per coerenza con il tracker
+                    if is_point_on_field((feet_x, feet_y), field_mask, bottom_tolerance=40):
+                        # CASO 1: Giocatore VALID (In campo) -> Disegna Box + ID
+                        color = self._get_color(tid)
 
-                    # Label ID sotto i piedi
-                    # Posizionato leggermente sotto il punto dei piedi
-                    self._draw_stylish_tag(frame, f"ID {tid}", feet_x, feet_y + 8, bg_color=self.COLOR_TEXT_BG)
+                        # Bounding Box
+                        cv2.rectangle(frame, (x, y), (x+w, y+h), color, 2)
+                        
+                        # "Mirino" sui piedi
+                        cv2.circle(frame, (feet_x, feet_y), 4, color, -1)
+                        cv2.circle(frame, (feet_x, feet_y), 5, (0,0,0), 1)
 
-            # --- 3. INFO GENERALI (Opzionale, in basso a destra o sinistra, meno invasivo) ---
+                        # Label ID
+                        self._draw_stylish_tag(frame, f"ID {tid}", feet_x, feet_y + 8, bg_color=self.COLOR_TEXT_BG)
+                    
+                    else:
+                        # CASO 2: Giocatore SCARTATO (Fuori campo) -> Disegna Croce Rossa
+                        # Come nel soccer_tracker: markerType=cv2.MARKER_TILTED_CROSS
+                        cv2.drawMarker(frame, (feet_x, feet_y), (0, 0, 255), 
+                                     markerType=cv2.MARKER_TILTED_CROSS, markerSize=15, thickness=2)
+                        # Opzionale: Se vuoi vedere anche il box "scartato", puoi decommentare sotto:
+                        # cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 255), 1)
+
+            # --- 3. INFO GENERALI ---
             info_text = f"Frame: {frame_id} | Total tracked: {len(tracks.get(frame_id, []))}"
             cv2.putText(frame, info_text, (20, h_img - 20), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (200, 200, 200), 1)
 

@@ -1,0 +1,118 @@
+{
+    "meta": {
+        "timestamp": "20251220_111057",
+        "tracker_config": "botsort_8",
+        "team_id": "16"
+    },
+    "main_config": {
+        "paths": {
+            "input_folder": "./tracking/test",
+            "output_folder": ".\\output\\test_conf20_iou70_botsort8_mask-new",
+            "detection_model": "models/yolo11x.pt",
+            "reid_model": "osnet_x0_25_msmt17.pt",
+            "tracker_config": ".\\configs\\botsort_8.yaml",
+            "roi_config": "configs/roi_config.json"
+        },
+        "settings": {
+            "team_id": "16",
+            "sequences": [
+                "SNMOT-060"
+            ]
+        },
+        "tracker": {
+            "imgsz": 1088,
+            "conf": 0.2,
+            "iou": 0.7,
+            "batch": 16,
+            "device": 0,
+            "half": false,
+            "classes": [
+                0
+            ],
+            "verbose": false,
+            "field_mask": true,
+            "mask_frequency": 1,
+            "buffer_size": 250
+        },
+        "behavior": null,
+        "debug": {
+            "show_track": true,
+            "show_mask": true,
+            "show_behaviour": false
+        }
+    },
+    "tracker_config": {
+        "tracker_type": "botsort",
+        "track_high_thresh": 0.35,
+        "track_low_thresh": 0.2,
+        "new_track_thresh": 0.4,
+        "track_buffer": 150,
+        "match_thresh": 0.9,
+        "fuse_score": true,
+        "gmc_method": "sparseOptFlow",
+        "with_reid": false,
+        "proximity_thresh": 0.5,
+        "appearance_thresh": 0.2,
+        "model": "auto",
+        "reid_model": "models/osnet_x1_0_soccernet.pt"
+    },
+    "metrics_overall": {
+        "HOTA_05": 0.025769,
+        "DetA": 0.018004,
+        "AssA": 0.0369,
+        "nMAE": 0.650933,
+        "PTBS": 0.676703,
+        "counts_sum": {
+            "TP": 522,
+            "FN": 28386,
+            "FP": 23,
+            "TPA": 10974,
+            "FNA": 259169,
+            "FPA": 0
+        }
+    },
+    "metrics_per_sequence": [
+        {
+            "seq": "150",
+            "hota": 0.035976,
+            "deta": 0.024593,
+            "assa": 0.052629,
+            "nmae": 0.652467,
+            "ptbs": 0.688443,
+            "TP": 252,
+            "FN": 9983,
+            "FP": 12,
+            "TPA": 7056,
+            "FNA": 127372,
+            "FPA": 0
+        },
+        {
+            "seq": "134",
+            "hota": 0.024406,
+            "deta": 0.017204,
+            "assa": 0.034621,
+            "nmae": 0.610933,
+            "ptbs": 0.635339,
+            "TP": 144,
+            "FN": 8226,
+            "FP": 0,
+            "TPA": 2594,
+            "FNA": 73504,
+            "FPA": 0
+        },
+        {
+            "seq": "142",
+            "hota": 0.016926,
+            "deta": 0.012216,
+            "assa": 0.023451,
+            "nmae": 0.6894,
+            "ptbs": 0.706326,
+            "TP": 126,
+            "FN": 10177,
+            "FP": 11,
+            "TPA": 1324,
+            "FNA": 58293,
+            "FPA": 0
+        }
+    ]
+}

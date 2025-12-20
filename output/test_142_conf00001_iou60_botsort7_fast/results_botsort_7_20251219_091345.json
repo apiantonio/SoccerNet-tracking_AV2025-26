@@ -1,0 +1,91 @@
+{
+    "meta": {
+        "timestamp": "20251219_091345",
+        "tracker_config": "botsort_7",
+        "team_id": "16"
+    },
+    "main_config": {
+        "paths": {
+            "input_folder": "./tracking/test",
+            "output_folder": ".\\output\\test_142_conf00001_iou60_botsort7_fast",
+            "detection_model": "models/soccana_best.pt",
+            "reid_model": "osnet_x0_25_msmt17.pt",
+            "tracker_config": ".\\configs\\botsort_7.yaml",
+            "roi_config": "configs/roi_config.json"
+        },
+        "settings": {
+            "team_id": "16",
+            "sequences": [
+                "SNMOT-060"
+            ]
+        },
+        "tracker": {
+            "imgsz": 1088,
+            "conf": 0.0001,
+            "iou": 0.55,
+            "batch": 16,
+            "device": 0,
+            "half": false,
+            "classes": [
+                0,
+                2
+            ],
+            "verbose": false,
+            "field_mask": true,
+            "mask_frequency": 1,
+            "buffer_size": 250
+        },
+        "behavior": null,
+        "debug": {
+            "show_track": true,
+            "show_mask": false,
+            "show_behaviour": false
+        }
+    },
+    "tracker_config": {
+        "tracker_type": "botsort",
+        "track_high_thresh": 0.55,
+        "track_low_thresh": 0.0001,
+        "new_track_thresh": 0.65,
+        "track_buffer": 180,
+        "match_thresh": 0.8,
+        "fuse_score": true,
+        "gmc_method": "sparseOptFlow",
+        "with_reid": false,
+        "proximity_thresh": 0.5,
+        "appearance_thresh": 0.2,
+        "model": "auto",
+        "reid_model": "models/osnet_x1_0_soccernet.pt"
+    },
+    "metrics_overall": {
+        "HOTA_05": 0.4806,
+        "DetA": 0.7093,
+        "AssA": 0.3257,
+        "nMAE": 0.8764,
+        "PTBS": 1.357,
+        "counts_sum": {
+            "TP": 7831,
+            "FN": 2472,
+            "FP": 738,
+            "TPA": 1221797,
+            "FNA": 2422883,
+            "FPA": 587463
+        }
+    },
+    "metrics_per_sequence": [
+        {
+            "seq": "SNMOT-142",
+            "hota": 0.4806,
+            "deta": 0.7093,
+            "assa": 0.3257,
+            "nmae": 0.8764,
+            "ptbs": 1.357,
+            "TP": 7831,
+            "FN": 2472,
+            "FP": 738,
+            "TPA": 1221797,
+            "FNA": 2422883,
+            "FPA": 587463
+        }
+    ]
+}

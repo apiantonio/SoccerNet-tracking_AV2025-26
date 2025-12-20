@@ -24,3 +24,5 @@ venv/
 models/*.pt
 models/*.pth
 models\model.osnet.pth.tar-10
+
+SIMULATOR\lecture_example_from_training

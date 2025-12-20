@@ -1,211 +1,135 @@
 import cv2
 import numpy as np
 
-SCALE_FACTOR = 0.5  # Fattore di riduzione per il calcolo della maschera
-REL_X1 = 0.15  # Coordinate ROI per campionare il campo
-REL_X2 = 0.85
-REL_X3 = 0.40
-REL_X4 = 0.60
-REL_Y1 = 0.50
-REL_Y2 = 0.90
-
-def apply_perspective_shrink(contour, image_shape, max_shrink_x=120, max_lift_y=80, border_thresh=10):
-    """
-    Restringe il contorno dinamicamente.
-    - NON tocca i punti che sono sui bordi laterali del video (es. inquadratura parziale).
-    - Taglia aggressivamente il fondo (pista/panchine).
-    """
-    h_img, w_img = image_shape[:2]
-    
-    # 1. Trova il centroide del poligono
-    M = cv2.moments(contour)
-    if M["m00"] != 0:
-        cX = int(M["m10"] / M["m00"])
-    else:
-        cX = w_img // 2 
-    
-    new_contour_points = []
-    
-    for point in contour[:, 0, :]:
-        x, y = point
-        
-        # --- LOGICA 1: Calcolo Fattore Y (Aggressività sul fondo) ---
-        # Usiamo una curva quadratica per aumentare l'effetto verso il fondo.
-        # Questo significa che l'effetto è quasi nullo a metà campo e fortissimo solo alla fine.
-        y_rel = y / h_img
-        y_factor = y_rel ** 2 
-        
-        # --- LOGICA 2: Protezione Bordi Video ---
-        # Se il punto è molto vicino al bordo sinistro (0) o destro (w_img), 
-        # assumiamo che il campo continui fuori inquadratura, quindi NON stringiamo X.
-        is_on_edge = (x < border_thresh) or (x > w_img - border_thresh)
-        
-        # Calcolo spostamenti
-        if is_on_edge:
-            shift_x = 0  # Non spostare orizzontalmente se è sul bordo
-        else:
-            shift_x = int(max_shrink_x * y_factor)
-            
-        shift_y = int(max_lift_y * y_factor)
-        
-        # Applica spostamento X verso il centro
-        new_x = x
-        if not is_on_edge:
-            if x < cX: 
-                new_x = min(x + shift_x, cX)
-            else:
-                new_x = max(x - shift_x, cX)
-            
-        # Applica spostamento Y (solo verso l'alto per tagliare il fondo)
-        new_y = max(0, y - shift_y)
-        
-        new_contour_points.append([new_x, new_y])
-    
-    return np.array(new_contour_points, dtype=np.int32).reshape((-1, 1, 2))
+# Fattore di scala per velocizzare l'elaborazione (0.5 = metà risoluzione)
+SCALE_FACTOR = 0.5 
 
 def get_field_mask(frame):
     """
-    Genera maschera del campo robusta a ombre e luci.
+    Genera una maschera del campo robusta utilizzando:
+    1. Analisi istogramma adattiva (invece di ROI fissa)
+    2. Combinazione spazi colore HSV + LAB (canale 'a' per il verde)
+    3. FloodFill e ConvexHull
     """
-    # 1. SCALE FACTOR: Mantenerlo a 0.5 è cruciale per le performance morfologiche.
-    # Se lo metti a 1.0, dovresti raddoppiare le dimensioni dei kernel (es. (30,30))
+    h_orig, w_orig = frame.shape[:2]
+    
+    # 1. Resize per performance
     small_frame = cv2.resize(frame, (0, 0), fx=SCALE_FACTOR, fy=SCALE_FACTOR, interpolation=cv2.INTER_LINEAR)
+    h_img, w_img = small_frame.shape[:2]
     
-    # 2. Converti in HSV
-    hsv = cv2.cvtColor(small_frame, cv2.COLOR_BGR2HSV)
-    
-    # CLAHE sul canale V (Luminosità)
-    # Aiuta a "schiarire" le ombre profonde prima della sogliatura
-    h, s, v = cv2.split(hsv)
-    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8)) # ClipLimit alzato leggermente
-    v = clahe.apply(v)
-    hsv = cv2.merge((h, s, v))
-    
-    # --- LOGICA ROI TRAPEZOIDALE ---
-    # Creiamo una maschera binaria per definire DOVE campionare il colore
-    h_img, w_img = hsv.shape[:2]
-    roi_mask = np.zeros((h_img, w_img), dtype=np.uint8)
-    
-    # Definiamo i 4 punti del trapezio (coordinate relative alla dimensione ridotta)
-    # Lato corto in basso (per evitare pista/pubblicità negli angoli bassi)
-    # Lato lungo in alto (per prendere più campo possibile)
-    
-    # Top-Left e Top-Right (più larghi, es. 15% - 85% width)
-    tl = (int(w_img * REL_X1), int(h_img * REL_Y1)) 
-    tr = (int(w_img * REL_X2), int(h_img * REL_Y1))
-    
-    # Bottom-Right e Bottom-Left (più stretti, es. 30% - 70% width)
-    # Questo evita gli angoli in basso a sinistra/destra
-    bl = (int(w_img * REL_X3), int(h_img * REL_Y2))
-    br = (int(w_img * REL_X4), int(h_img * REL_Y2))
-    
-    pts = np.array([tl, tr, br, bl], dtype=np.int32)
-    cv2.fillPoly(roi_mask, [pts], 255)
-    
-    # Estraiamo i pixel che cadono dentro il trapezio
-    # hsv[roi_mask > 0] restituisce un array (N, 3) di pixel
-    roi_pixels = hsv[roi_mask > 0]
-    
-    # Valori di default (fallback)
-    lower_green = np.array([35, 45, 20])
-    upper_green = np.array([85, 255, 255])
-    
-    if roi_pixels.size > 0:
-        # Calcoliamo la mediana su tutti i pixel del trapezio
-        median_hsv = np.median(roi_pixels, axis=0)
-        
-        # Sanity check: è verde?
-        if 30 < median_hsv[0] < 90:
-            tol_h = 18
-            tol_s = 70
-            
-            # Logica "Shadow-Safe": 
-            # Hue stretto, Saturation larga, Value COMPLETO (20-255) per accettare sole e ombra.
-            lower_green = np.array([
-                max(0, median_hsv[0] - tol_h),
-                max(45, median_hsv[1] - tol_s),
-                20  # V min fissa bassa (ombre)
-            ])
-            
-            upper_green = np.array([
-                min(180, median_hsv[0] + tol_h),
-                min(255, median_hsv[1] + tol_s),
-                255 # V max fissa alta (sole)
-            ])
+    # Pre-processing: Blur leggero per ridurre rumore dell'erba
+    blurred = cv2.GaussianBlur(small_frame, (5, 5), 0)
 
-    # 3. Maschera
-    mask = cv2.inRange(hsv, lower_green, upper_green)
+    # ---------------------------------------------------------
+    # STEP 1: Rilevamento Colore Adattivo (Istogramma)
+    # ---------------------------------------------------------
+    hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
     
-    # Rimozione del bianco per i cartelloni e altre superfici riflettenti
-    lower_white = np.array([0, 0, 180])   
-    upper_white = np.array([180, 60, 255])
-    white_mask = cv2.inRange(hsv, lower_white, upper_white)
+    # Analizziamo solo la metà inferiore dell'immagine per trovare il colore del campo
+    # (evitiamo di analizzare il cielo o gli spalti alti)
+    roi_hist = hsv[int(h_img * 0.4):, :, 0] # Canale Hue, dal 40% in giù
     
-    # Sottraiamo i bianchi dalla maschera verde
-    # (bitwise_not inverte white_mask, bitwise_and tiene solo ciò che è Verde E NON Bianco)
-    mask = cv2.bitwise_and(mask, cv2.bitwise_not(white_mask))
+    # Calcolo istogramma della Hue (0-180)
+    hist = cv2.calcHist([roi_hist], [0], None, [180], [0, 180])
     
-    # 4. Pulizia Morfologica (Dinamica in base allo SCALE_FACTOR)
-    base_morph_size = 30 # Dimensione base
-    k_size = max(3, int(base_morph_size * SCALE_FACTOR))
+    # Cerchiamo il picco nell'intervallo del verde (circa 30-90 in OpenCV Hue)
+    # Azzeriamo tutto ciò che non è verde verosimile per trovare il picco giusto
+    hist[:30] = 0
+    hist[95:] = 0
     
-    # Erode piccolo per staccare elementi
-    mask = cv2.erode(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)), iterations=1)
+    peak_hue = np.argmax(hist)
     
-    # Close grande per chiudere i giocatori e le linee bianche
-    kernel_close = cv2.getStructuringElement(cv2.MORPH_RECT, (k_size, k_size))
-    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel_close)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel_close)
+    # Se non troviamo un picco valido (es. inquadratura solo pubblico), fallback a default
+    if peak_hue == 0: 
+        peak_hue = 60 # Verde standard
+
+    # Definiamo tolleranze dinamiche
+    hue_tol = 18   # Tolleranza colore
+    sat_min = 35   # Saturazione minima (evita grigi/bianchi)
+    val_min = 30   # Luminosità minima (evita neri assoluti)
+
+    lower_green_hsv = np.array([max(0, peak_hue - hue_tol), sat_min, val_min])
+    upper_green_hsv = np.array([min(180, peak_hue + hue_tol), 255, 255])
     
-    # 5. Contorni e Hull
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    mask_hsv = cv2.inRange(hsv, lower_green_hsv, upper_green_hsv)
+
+    # ---------------------------------------------------------
+    # STEP 2: Refinement con Spazio LAB (Canale 'a')
+    # ---------------------------------------------------------
+    # Il canale 'a' in LAB va da Verde (valori bassi) a Rosso (valori alti).
+    # In OpenCV uint8, 128 è neutro. Valori < 120 sono fortemente verdi.
+    lab = cv2.cvtColor(blurred, cv2.COLOR_BGR2LAB)
     
-    if not contours:
-        return np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
+    # Soglia empirica robusta per l'erba: 'a' deve essere basso (verde)
+    # L'erba solitamente sta sotto 115-120 su scala 0-255
+    mask_lab = cv2.inRange(lab, np.array([0, 0, 0]), np.array([255, 118, 255]))
+    
+    # Intersezione: deve essere verde SIA in HSV SIA in LAB
+    combined_mask = cv2.bitwise_and(mask_hsv, mask_lab)
+
+    # ---------------------------------------------------------
+    # STEP 3: Pulizia Morfologica
+    # ---------------------------------------------------------
+    # Kernel ellittici
+    k_open = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
+    k_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (25, 25))
+    
+    # Rimuovi rumore (spettatori con maglie verdi, coriandoli)
+    mask_clean = cv2.morphologyEx(combined_mask, cv2.MORPH_OPEN, k_open, iterations=2)
+    
+    # Chiudi i buchi (giocatori, linee bianche interne al campo)
+    mask_clean = cv2.morphologyEx(mask_clean, cv2.MORPH_CLOSE, k_close, iterations=2)
+
+    # ---------------------------------------------------------
+    # STEP 4: Selezione dell'Area Maggiore (FloodFill / Contorni)
+    # ---------------------------------------------------------
+    contours, _ = cv2.findContours(mask_clean, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    final_mask = np.zeros_like(mask_clean)
+    
+    if contours:
+        # Trova il contorno più grande (sicuramente il campo)
+        largest_contour = max(contours, key=cv2.contourArea)
         
-    largest_contour = max(contours, key=cv2.contourArea)
-    hull = cv2.convexHull(largest_contour)
+        # Se il contorno è troppo piccolo (es. inquadratura zoomata sul pubblico), ritorna vuoto
+        if cv2.contourArea(largest_contour) < (h_img * w_img * 0.05):
+            return cv2.resize(final_mask, (w_orig, h_orig), interpolation=cv2.INTER_NEAREST)
+
+        # Calcola Convex Hull per regolarizzare la forma (il campo è convesso)
+        hull = cv2.convexHull(largest_contour)
+        
+        # --- Ottimizzazione Bordi ---
+        # Spesso la hull include angoli di spalti in alto. 
+        # Possiamo migliorare approssimando a un poligono con meno vertici
+        epsilon = 0.005 * cv2.arcLength(hull, True)
+        approx = cv2.approxPolyDP(hull, epsilon, True)
+        
+        cv2.drawContours(final_mask, [approx], -1, 255, thickness=cv2.FILLED)
+
+    # ---------------------------------------------------------
+    # STEP 5: Post-Processing e Resize
+    # ---------------------------------------------------------
+    # Riporta alla dimensione originale
+    final_mask_full = cv2.resize(final_mask, (w_orig, h_orig), interpolation=cv2.INTER_NEAREST)
     
-    # Riportiamo alla scala originale
-    hull = (hull * (1 / SCALE_FACTOR)).astype(np.int32)
-    
-    # Shrink prospettico
-    hull = apply_perspective_shrink(
-        hull, 
-        frame.shape, 
-        max_shrink_x=130, 
-        max_lift_y=40, 
-        border_thresh=15
-    )
-    
-    hull = cv2.convexHull(hull)
-    
-    clean_mask = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
-    cv2.drawContours(clean_mask, [hull], -1, 255, thickness=cv2.FILLED)
-    
-    return clean_mask
+    return final_mask_full
 
 def is_point_on_field(point, field_mask, bottom_tolerance=40):
     """
     Controlla se un punto è nel campo.
-    Include una logica di sicurezza per il bordo inferiore.
-    
-    :param bottom_tolerance: Se il punto è negli ultimi N pixel in basso, 
-                             controlla la maschera un po' più in su.
     """
     x, y = int(point[0]), int(point[1])
     h, w = field_mask.shape
     
-    # Clamp x per sicurezza
+    # Clamp coordinates
     x = max(0, min(x, w - 1))
     
-    # Se il giocatore tocca il fondo spostiamo il punto di controllo verso l'alto per evitare falsi negativi
+    # Tolleranza per i piedi che toccano quasi il bordo inferiore dell'immagine
+    # Se siamo molto in basso, assumiamo sia campo (la camera non inquadra sotto terra)
     if y >= h - bottom_tolerance:
-        y_check = h - bottom_tolerance - 1
-        # Assicuriamoci di non andare sotto zero
-        y_check = max(0, y_check)
-        return field_mask[y_check, x] > 0
+        return True 
 
-    # Controllo standard per il resto dell'immagine
     y = max(0, min(y, h - 1))
-    return field_mask[y, x] > 0
+    
+    # Verifica il valore della maschera (255 = campo)
+    return field_mask[y, x] > 127

@@ -25,6 +25,10 @@ class SoccerTracker:
         self.batch_size = config['tracker']['batch']
         self.use_field_mask = config['tracker'].get('field_mask', True)
 
+        tracker_cfg = os.path.basename(self.tracker_cfg_path)
+        tracker_cfg = yaml.safe_load(open(self.tracker_cfg_path, 'r'))
+        self.with_reid = tracker_cfg.get('with_reid', False)
+
         self.device = config['tracker']['device']
         self.output_folder = config['paths']['output_folder']
         self.classes = config['tracker'].get('classes', [0])
@@ -82,6 +86,12 @@ class SoccerTracker:
         print(f"🔄 Caricamento Modello YOLO: {self.model_path}")
         self.model = YOLO(self.model_path)
         
+        if self.with_reid:
+            print(f"🔍 ReID abilitato.\n")
+        else:
+            print("🔍 ReID non abilitato.\n")
+
+        
     def _get_id_color(self, track_id):
         """Genera un colore univoco e consistente per ogni track_id."""
         track_id = int(track_id)
@@ -131,17 +141,12 @@ class SoccerTracker:
         output_dir = self.config['paths']['output_folder']
         os.makedirs(output_dir, exist_ok=True)
         
-        output_filename = f"tracking_{sequence_name}_{self.config['settings']['team_id']}.txt"
+        # Pulizia del nome file (Rimuove SNMOT-) per comaptibilità con il simulator
+        clean_seq_name = sequence_name.replace("SNMOT-", "")
+        output_filename = f"tracking_{clean_seq_name}_{self.config['settings']['team_id']}.txt"
         output_path = os.path.join(output_dir, output_filename)
         
-        tracker_cfg = os.path.basename(self.tracker_cfg_path)
-        tracker_cfg = yaml.safe_load(open(self.tracker_cfg_path, 'r'))
-        if tracker_cfg.get('with_reid', False):
-            print(f"\n🔍 ReID abilitato.")
-        else:
-            print("\n🔍 ReID non abilitato.")
-
-        print(f"🚀 Avvio Tracking: {sequence_name} | imgsz: {self.imgsz} | conf: {self.conf} | iou: {self.iou} | batch: {self.batch_size} | device: {self.device} | half-precision (FP16): {self.half} | verbose: {self.verbose} | debug: (track: {self.show_track}, behav: {self.show_behaviour})")
+        print(f"\n🚀 Avvio Tracking: {sequence_name} | imgsz: {self.imgsz} | conf: {self.conf} | iou: {self.iou} | batch: {self.batch_size} | reid: {self.with_reid} | device: {self.device} | half-precision (FP16): {self.half} | verbose: {self.verbose} | debug: (track: {self.show_track}, behav: {self.show_behaviour})")
 
         gc.collect()
         torch.cuda.empty_cache()
@@ -181,16 +186,16 @@ class SoccerTracker:
                         # l'immagine prima di calcolare la maschera o calcolarla ogni N frame.
                         if frame_idx % self._mask_frequency == 0:  # Aggiorna la maschera ogni N frame
                             field_mask = get_field_mask(r.orig_img)
-                            # Disegna la roi da cui la maschera è stata calcolata (per debug)
-                            if self.debug and self.show_mask_overlay:
-                                tl = (int(r.orig_img.shape[1] * REL_X1), int(r.orig_img.shape[0] * REL_Y1))
-                                tr = (int(r.orig_img.shape[1] * REL_X2), int(r.orig_img.shape[0] * REL_Y1))
-                                bl = (int(r.orig_img.shape[1] * REL_X3), int(r.orig_img.shape[0] * REL_Y2))
-                                br = (int(r.orig_img.shape[1] * REL_X4), int(r.orig_img.shape[0] * REL_Y2))
-                                cv2.line(r.orig_img, tl, tr, (255, 0, 0), 2)
-                                cv2.line(r.orig_img, tr, br, (255, 0, 0), 2)
-                                cv2.line(r.orig_img, br, bl, (255, 0, 0), 2)
-                                cv2.line(r.orig_img, bl, tl, (255, 0, 0), 2)
+                            # # Disegna la roi da cui la maschera è stata calcolata (per debug)
+                            # if self.debug and self.show_mask_overlay:
+                            #     tl = (int(r.orig_img.shape[1] * REL_X1), int(r.orig_img.shape[0] * REL_Y1))
+                            #     tr = (int(r.orig_img.shape[1] * REL_X2), int(r.orig_img.shape[0] * REL_Y1))
+                            #     bl = (int(r.orig_img.shape[1] * REL_X3), int(r.orig_img.shape[0] * REL_Y2))
+                            #     br = (int(r.orig_img.shape[1] * REL_X4), int(r.orig_img.shape[0] * REL_Y2))
+                            #     cv2.line(r.orig_img, tl, tr, (255, 0, 0), 2)
+                            #     cv2.line(r.orig_img, tr, br, (255, 0, 0), 2)
+                            #     cv2.line(r.orig_img, br, bl, (255, 0, 0), 2)
+                            #     cv2.line(r.orig_img, bl, tl, (255, 0, 0), 2)
                     else:
                         # Maschera piena (tutto il frame)
                         h_img, w_img = r.orig_img.shape[:2]
@@ -223,7 +228,7 @@ class SoccerTracker:
                                 valid_ids.append(track_ids[i])
                                 valid_confs.append(confs[i])
                             else:
-                                # DEBUG: Punto del bounding box ignorato con z molto alta
+                                # DEBUG: Punto del bounding box ignorato
                                 cv2.drawMarker(r.orig_img, feet_point, (0, 0, 255), markerType=cv2.MARKER_TILTED_CROSS, markerSize=10, thickness=2)
                                 pass
                     
@@ -323,6 +328,12 @@ class SoccerTracker:
                         f.writelines(buffer)
                         buffer.clear()
                         f.flush()
+                        
+                # Scrivi ciò che è rimasto nel buffer alla fine del video (serve se il video ha un numero di frame non divisibile ocn buffer size)
+                if buffer:
+                    f.writelines(buffer)
+                    buffer.clear()
+                    f.flush()
         
         finally:
             if self.debug:
