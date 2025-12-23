@@ -3,7 +3,7 @@ tracking/
 tracking/train/
 tracking/test/
 tracking/challenge/
-SIMULATOR\lecture_example_from_training
+SIMULATOR/lecture_example_from_training
 
 # --- Output video di Esecuzioni ---
 output/**/*.mp4
