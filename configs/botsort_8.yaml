@@ -4,8 +4,8 @@
 tracker_type: botsort     # (str) Tracker backend: botsort|bytetrack; choose botsort to enable BoT-SORT features
 track_high_thresh: 0.35   # (float) First-stage match threshold; raise for cleaner tracks, lower to keep more
 track_low_thresh: 0.20    # (float) Second-stage threshold for low-score matches; balances recovery vs drift
-new_track_thresh: 0.35    # (float) Start a new track if no match ≥ this; higher reduces false tracks
-track_buffer: 120         # (int) Frames to keep lost tracks alive; higher handles occlusion, increases ID switches risk
+new_track_thresh: 0.40    # (float) Start a new track if no match ≥ this; higher reduces false tracks
+track_buffer: 60         # (int) Frames to keep lost tracks alive; higher handles occlusion, increases ID switches risk
 match_thresh: 0.90        # (float) Association similarity threshold (IoU/cost); tune with detector quality
 fuse_score: True          # (bool) Fuse detection score with motion/IoU for matching; stabilizes weak detections
 
@@ -13,7 +13,7 @@ fuse_score: True          # (bool) Fuse detection score with motion/IoU for matc
 gmc_method: sparseOptFlow # (str) Global motion compensation: sparseOptFlow|orb|none; helps moving camera scenes
 
 # ReID model related thresh
-with_reid: True           # (bool) Enable ReID model use; needs extra model and compute
+with_reid: False           # (bool) Enable ReID model use; needs extra model and compute
 proximity_thresh: 0.75    # (float) Min IoU to consider tracks proximate for ReID; higher is stricter
 appearance_thresh: 0.30   # (float) Min appearance similarity for ReID; raise to avoid identity swaps
 model: auto               # (str) ReID model name/path; "auto" uses detector features if available
