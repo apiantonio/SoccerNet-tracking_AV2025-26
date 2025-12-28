@@ -2,8 +2,6 @@ import argparse
 import yaml
 import os
 import time
-
-# Import classi
 from tracker.soccer_tracker import SoccerTracker
 from behaviour.behaviour_analyzer import BehaviorAnalyzer
 from visualizer.soccer_visualizer import SoccerVisualizer
@@ -67,20 +65,20 @@ def main():
         - eval: esegue solo la valutazione (HOTA)
         - all: esegue tutta la pipeline (default)
 
-    :param config: Path al file di configurazione YAML
-    :param step: Step della pipeline da eseguire
-    :param seq: Lista di sequenze da processare (es. SNMOT-060), o "all" per tutte le sequenze nel folder di input
-    :param input_folder: (opzionale) Sovrascrivi la cartella di input dal file di config
-    :param output_folder: (opzionale) Sovrascrivi la cartella di output dal file di config
-    :param tracker_config: (opzionale) Path al file di configurazione del tracker
-    :param roi_config: (opzionale) Path al file di configurazione delle ROI
-    :param imgsz: (opzionale) Sovrascrivi la risoluzione di input del tracker
-    :param conf: (opzionale) Sovrascrivi la confidenza minima del tracker
-    :param iou: (opzionale) Sovrascrivi la soglia IOU del tracker
-    :param batch: (opzionale) Sovrascrivi la dimensione del batch per il tracker
-    :param half: (opzionale) Usa FP16 per il tracking (se supportato)
-    :param verbose: (opzionale) Abilita output verboso per il tracker
-    :param debug: (opzionale) Modalità debug: show_tracks, show_mask, show_behaviour o none per disabilitare
+    :param --config: Path al file di configurazione YAML
+    :param --step: Step della pipeline da eseguire
+    :param --seq: Lista di sequenze da processare (es. SNMOT-060), o "all" per tutte le sequenze nel folder di input
+    :param --input_folder: (opzionale) Sovrascrivi la cartella di input dal file di config
+    :param --output_folder: (opzionale) Sovrascrivi la cartella di output dal file di config
+    :param --tracker_config: (opzionale) Path al file di configurazione del tracker
+    :param --roi_config: (opzionale) Path al file di configurazione delle ROI
+    :param --imgsz: (opzionale) Sovrascrivi la risoluzione di input del tracker
+    :param --conf: (opzionale) Sovrascrivi la confidenza minima del tracker
+    :param --iou: (opzionale) Sovrascrivi la soglia IOU del tracker
+    :param --batch: (opzionale) Sovrascrivi la dimensione del batch per il tracker
+    :param --half: (opzionale) Usa FP16 per il tracking (se supportato)
+    :param --verbose: (opzionale) Abilita output verboso per il tracker
+    :param --debug: (opzionale) Modalità debug: show_tracks, show_mask, show_behaviour o none per disabilitare
 
     - :Esempio di esecuzione:
         `python src/main.py --config configs/main_config.yaml --step all --seq SNMOT-060 SNMOT-061 --input_folder data/input --output_folder data/output`
@@ -128,13 +126,13 @@ def main():
         if sequences == ['all']:
             input_root = cfg['paths']['input_folder']
             sequences = [d for d in os.listdir(input_root) if os.path.isdir(os.path.join(input_root, d))]
-            sequences = [s for s in sequences if s.startswith("SNMOT")]
+            # sequences = [s for s in sequences if s.startswith("SNMOT")]
     elif cfg['settings'].get('sequences'):  # se sequence non è definito negli argomenti, controlla nel file di config
         sequences = cfg['settings']['sequences']
     else:
         input_root = cfg['paths']['input_folder']
         sequences = [d for d in os.listdir(input_root) if os.path.isdir(os.path.join(input_root, d))]
-        sequences = [s for s in sequences if s.startswith("SNMOT")]
+        # sequences = [s for s in sequences if s.startswith("SNMOT")]
 
     print(f"Configurazione caricata. Step: {args.step}")
     print(f"Sequenze target: {sequences}")
@@ -190,7 +188,7 @@ def main():
             except Exception as e:
                 print(f"Errore visualizer su {seq}: {e}")
         end_video_time = time.time()
-        print(f"\n Generazione video completata in {end_video_time - start_video_time:.2f} secondi.")
+        print(f"\nGenerazione video completata in {end_video_time - start_video_time:.2f} secondi.")
 
 
 if __name__ == "__main__":

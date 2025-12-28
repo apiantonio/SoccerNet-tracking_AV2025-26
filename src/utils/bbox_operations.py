@@ -1,3 +1,5 @@
+
+
 class BBoxOperations:
     """
     Classe di utilità per operazioni geometriche su Bounding Box.

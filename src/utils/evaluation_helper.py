@@ -151,6 +151,7 @@ def build_trackeval_structure(
         tmp_root: str,
         benchmark: str = "SNMOT",
         tracker_name: str = "test",
+        target_sequences: List[str] = None
 ) -> Tuple[str, str, str]:
     """
     Creates the folder structure required by TrackEval.
@@ -174,10 +175,18 @@ def build_trackeval_structure(
     os.makedirs(gt_bs, exist_ok=True)
     os.makedirs(tr_bs, exist_ok=True)
 
-    seqs = list_video_ids(dataset_root)
-    if not seqs:
-        raise FileNotFoundError(f"No numeric video folders found in: {dataset_root}")
+    # Recupera tutte le sequenze
+    all_seqs = list_video_ids(dataset_root)
+    
+    # Se abbiamo specificato sequenze target (e non è 'all'), filtriamo
+    if target_sequences and 'all' not in target_sequences:
+        seqs = [s for s in all_seqs if s in target_sequences]
+    else:
+        seqs = all_seqs
 
+    if not seqs:
+        raise FileNotFoundError(f"No numeric video folders found in: {dataset_root} matching the request.")
+    
     for seq in seqs:
         src_seq = os.path.join(dataset_root, seq)
         src_img1 = os.path.join(src_seq, "img1")
@@ -290,10 +299,9 @@ def compute_metrics_with_details(
 
             row = {
                 'Video': display_name,
-                'HOTA': float(hota_res['HOTA'][idx_05]),
-                'DetA': float(hota_res['DetA'][idx_05]),
-                'AssA': float(hota_res['AssA'][idx_05]),
-                'MOTA': float(clear_res['MOTA']),
+                'HOTA': round(float(hota_res['HOTA'][idx_05]), 6),
+                'DetA': round(float(hota_res['DetA'][idx_05]), 6),
+                'AssA': round(float(hota_res['AssA'][idx_05]), 6),
                 'TP': int(clear_res['CLR_TP']),
                 'FN': int(clear_res['CLR_FN']),
                 'FP': int(clear_res['CLR_FP']),

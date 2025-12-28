@@ -2,8 +2,8 @@ import os
 import cv2
 import json
 import glob
-from src.utils.bbox_operations import BBoxOperations
-from src.utils.bbox_drawer import BBoxDrawer
+from utils.bbox_operations import BBoxOperations
+from utils.bbox_drawer import BBoxDrawer
 
 
 class SoccerVisualizer:

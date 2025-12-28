@@ -3,13 +3,15 @@ import shutil
 import json
 import numpy as np
 from datetime import datetime
-from src.utils.bbox_operations import BBoxOperations
-from src.utils.evaluation_helper import (
-    build_trackeval_structure,
-    compute_metrics_with_details,
-    compute_nmae_from_behavior_files,
-)
-
+from utils.bbox_operations import BBoxOperations
+from utils.evaluation_helper import build_trackeval_structure, compute_metrics_with_details, compute_nmae_from_behavior_files
+# ---- NumPy 2.x compatibility for TrackEval (older code uses deprecated aliases) ----
+if not hasattr(np, "float"):
+    np.float = float
+if not hasattr(np, "int"):
+    np.int = int
+if not hasattr(np, "bool"):
+    np.bool = bool
 
 class Evaluator:
     def __init__(self, config):
@@ -130,8 +132,7 @@ class Evaluator:
         Usa 'sequences' per filtrare l'output del report finale.
         """
         print("\n" + "=" * 125)
-        print(
-            f"{'SEQUENCE':<15} | {'HOTA':<7} | {'DetA':<7} | {'AssA':<7} | {'nMAE':<7} | {'TP':<6} | {'FN':<6} | {'FP':<6} |")
+        print(f"{'SEQUENCE':<15} | {'HOTA':<7} | {'DetA':<7} | {'AssA':<7} | {'nMAE':<7} | {'TP':<6} | {'FN':<6} | {'FP':<6} |")
         print("-" * 125)
 
         # 1. Preparazione Cartelle TrackEval
@@ -144,10 +145,11 @@ class Evaluator:
                 fps=25.0,
                 tmp_root=self.tmp_root,
                 benchmark="SNMOT",
-                tracker_name="my_tracker"
+                tracker_name="my_tracker",
+                target_sequences=sequences
             )
         except Exception as e:
-            print(f"❌ Errore critico setup TrackEval: {e}")
+            print(f"Errore critico setup TrackEval: {e}")
             return
 
         # 2. Esecuzione TrackEval (Silenziata)
@@ -204,8 +206,8 @@ class Evaluator:
             final_rows.append(row)
 
             # Stampa riga tabella
-            print(
-                f"{seq_name:<15} | {row['HOTA'] * 100:6.2f}% | {row['DetA'] * 100:6.2f}% | {row['AssA'] * 100:6.2f}% | {nmae * 100:6.2f}% | {row['TP']:<6} | {row['FN']:<6} | {row['FP']:<6} |")
+            if seq_name == 'GLOBAL_SCORE': print("-" * 125)
+            print(f"{seq_name:<15} | {row['HOTA'] * 100:6.4f}% | {row['DetA'] * 100:6.4f}% | {row['AssA'] * 100:6.4f}% | {nmae * 100:6.4f}% | {row['TP']:<6} | {row['FN']:<6} | {row['FP']:<6} |")
 
         print("-" * 125)
 
@@ -216,7 +218,7 @@ class Evaluator:
         if global_row:
             # Calcolo PTBS finale usando i valori nel dizionario (senza variabili ridondanti)
             final_ptbs = global_row['HOTA'] + global_row['nMAE']
-
+            
             print(f"{'PTBS':<15} | {final_ptbs:7.4f}")
             print("=" * 125 + "\n")
 
@@ -245,9 +247,11 @@ class Evaluator:
             "meta": {"timestamp": timestamp, "team_id": self.team_id},
             "main_config": self.config,
             "metrics_overall": {
-                "HOTA_05": round(float(avg_hota), 4),
-                "nMAE": round(float(global_nmae), 4),
-                "PTBS": round(float(final_ptbs), 4),
+                "HOTA_05": round(float(avg_hota), 6),
+                "nMAE": round(float(global_nmae), 6),
+                "PTBS": round(float(final_ptbs), 6),
+                "DetA": round(float(avg_deta), 6),
+                "AssA": round(float(avg_assa), 6),
                 "counts_sum": global_raw_counts
             },
             "metrics_per_sequence": results_list
@@ -255,7 +259,7 @@ class Evaluator:
         try:
             with open(save_path, 'w') as f:
                 json.dump(structured_data, f, indent=4)
-            print(f"💾 Report JSON salvato: {save_path}")
+            print(f"Report JSON salvato: {save_path}")
         except:
             pass
 
@@ -280,10 +284,11 @@ class Evaluator:
                             f"# {res['Video']:<15} | {res['HOTA'] * 100:6.2f}% | {res['DetA'] * 100:6.2f}% | {res['AssA'] * 100:6.2f}% | {nm * 100:6.2f}% |\n")
                     f.write(f"# {'-' * 129}\n")
                     # Riga globale senza MOTA
-                    f.write(
-                        f"# {'GLOBAL':<15} | {avg_hota * 100:6.2f}% | {avg_deta * 100:6.2f}% | {avg_assa * 100:6.2f}% | {global_nmae * 100:6.2f}% |\n")
+                    f.write("# " + "-" * 130)
+                    f.write(f"# {'GLOBAL':<15} | {avg_hota * 100:6.2f}% | {avg_deta * 100:6.2f}% | {avg_assa * 100:6.2f}% | {global_nmae * 100:6.2f}% |\n")
+                    f.write("# " + "-" * 130)
                     f.write(f"# {'PTBS':<20} | {final_ptbs:7.4f}\n")
                     f.write("# " + "=" * 130 + "\n")
-                print(f"📝 Report TXT aggiunto a: {saved_cfg_path}")
+                print(f"Report TXT aggiunto a: {saved_cfg_path}")
             except Exception as e:
-                print(f"⚠️ Errore scrittura TXT: {e}")
+                print(f"Errore scrittura TXT: {e}")

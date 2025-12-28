@@ -1,3 +1,6 @@
+Qui vengono salvati i pesi dei modelli usati.
+
+```bibtext
 @misc{https://doi.org/10.48550/arxiv.2206.02373,
   doi = {10.48550/ARXIV.2206.02373},
   url = {https://arxiv.org/abs/2206.02373},
@@ -20,3 +23,4 @@
   orcid = {0000-0001-5950-6979, 0000-0003-3783-7069},
   license = {AGPL-3.0}
 }
+```

@@ -1,29 +1,26 @@
 paths:
-  input_folder: "tracking/train"       # Root delle sequenze (dove ci sono SNMOT-xxx)
+  input_folder: "tracking/test"       # Root delle sequenze (dove ci sono SNMOT-xxx)
   output_folder: "output/"              # Dove salvare i risultati
-  detection_model: "models/yolo11x.pt" #"models/soccana_best.pt" #models/player_detection_best.pt"
-  reid_model: "osnet_x0_25_msmt17.pt"  # Modello ReID leggero
+  detection_model: "models/yolov11x.pt" #"models/syolov11n_soccana.pt"
+  reid_model: "models/osnet_x1_0_soccernet.pt"  # Modello ReID leggero
   tracker_config: "configs/botsort.yaml"
   roi_config: "configs/roi_config.json" # Il file con le coordinate delle aree
 
 settings:
   team_id: "16"                        # Il tuo ID team per il nome file (es. _16.txt)
-  sequences: ["SNMOT-060"]             # Lista di default (o "all")
+  sequences: [""]             # Lista di default (o "all")
 
 tracker:
   imgsz: 1088        # Risoluzione input modello detection (deve essere multiplo di 32)
-  conf: 0.25         # Confidenza minima detection (default 0.25)
+  conf: 0.2          # Confidenza minima detection (default 0.25)
   iou: 0.7           # IOU threshold NMS (default 0.7)
   batch: 16          # Batch size per il tracking (default 16)
   device: 0          # GPU ID
   half: False        # FP16 mode (risparmia 50% VRAM)
-  classes: [0]       #[0] #[1, 2, 3] # Classi da cambiare a seconda del modello usato 
+  classes: [0, 2]       #[0] #[1, 2, 3] # Classi da cambiare a seconda del modello usato 
   verbose: False     # Stampa info dettagliate durante il tracking
   field_mask: True   # Usa la maschera del campo per filtrare le detections fuori campo
   mask_frequency: 1  # Frequenza (in frame) di aggiornamento della maschera del campo
   buffer_size: 250   # Numero di frame dopo i quali salvare i log su file
-
-behavior:
-  # TODO: parametri per l'analisi del comportamento
 
 debug: False

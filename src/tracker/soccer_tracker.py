@@ -7,20 +7,10 @@ import json
 from ultralytics import YOLO
 import cv2
 import numpy as np
-import sys
-
-# IMPORT UTILS
-from src.utils.field_masking import *
-from src.utils.bbox_operations import BBoxOperations
-from src.utils.bbox_drawer import BBoxDrawer
-
-# --- FIX PER COLAB: Importa patch per visualizzazione ---
-try:
-    from google.colab.patches import cv2_imshow
-    from IPython.display import clear_output
-    IS_COLAB = True
-except ImportError:
-    IS_COLAB = False
+import yaml
+from utils.field_masking import *
+from utils.bbox_operations import BBoxOperations
+from utils.bbox_drawer import BBoxDrawer
 
 class SoccerTracker:
     def __init__(self, config):
@@ -28,12 +18,16 @@ class SoccerTracker:
         self.config = config
         self.paths = config['paths']
         self.sets = config['tracker']
+        self.team_id = config['settings']['team_id']
 
-        print(f"Init YOLO: {self.paths['detection_model']}")
+        print(f"Detection model: {self.paths['detection_model']} (classes: {self.sets['classes']})")
         self.model = YOLO(self.paths['detection_model'])
 
         self.drawer = BBoxDrawer()
         self.tracker_cfg_path = self.paths['tracker_config']
+        tracker_cfg = os.path.basename(self.tracker_cfg_path)
+        tracker_cfg = yaml.safe_load(open(self.tracker_cfg_path, 'r'))
+        self.with_reid = tracker_cfg.get('with_reid', False)
         self.output_folder = self.paths['output_folder']
 
         self.imgsz = self.sets.get('imgsz', 1088)
@@ -80,6 +74,8 @@ class SoccerTracker:
                     self.roi_data = json.load(f)
             except Exception:
                 print(f"ROI Config non trovato o errore: {self.paths['roi_config']}")
+        
+        print(f"\nTracker creato = imgsz: {self.imgsz} | conf: {self.conf} | iou: {self.iou} | batch: {self.batch_size} | reid: {self.with_reid} | device: {self.device} | half-precision (FP16): {self.half} | verbose: {self.verbose} | debug: (track: {self.show_track}, behav: {self.show_behaviour})")
 
     def track_sequence(self, sequence_name):
         """Esegue il tracking su una sequenza specifica."""
@@ -89,11 +85,10 @@ class SoccerTracker:
         output_dir = self.paths['output_folder']
         os.makedirs(output_dir, exist_ok=True)
 
-        output_filename = f"tracking_{sequence_name}_{self.config['settings']['team_id']}.txt"
+        output_filename = f"tracking_{sequence_name}_{self.team_id}.txt"
         output_path = os.path.join(output_dir, output_filename)
 
-        print(f"Avvio Tracking: {sequence_name} | imgsz: {self.imgsz} | conf: {self.conf} | debug: (track: {self.show_track}, mask: {self.show_mask_overlay})")
-
+        print(f"\n- Avvio Tracking su sequenza {sequence_name} |")
         # 2. Pulizia Memoria
         gc.collect()
         torch.cuda.empty_cache()
@@ -172,8 +167,8 @@ class SoccerTracker:
                 f.writelines(buffer)
                 f.flush()
 
-        # 7. Chiusura Debug (Solo locale)
-        if self.debug and not IS_COLAB:
+        # 7. Chiusura Debug
+        if self.debug:
             try:
                 cv2.destroyAllWindows()
                 cv2.waitKey(1)
@@ -228,16 +223,8 @@ class SoccerTracker:
             info_text = f"LIVE: {sequence_name} | Frame: {frame_idx}"
             cv2.putText(canvas, info_text, (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 255), 2)
 
-            # 5. Visualizzazione
-            if IS_COLAB:
-                # Per Colab: ridimensiona per velocità e usa cv2_imshow + clear_output
-                display_img = cv2.resize(canvas, (0, 0), fx=0.6, fy=0.6)
-                clear_output(wait=True)
-                cv2_imshow(display_img)
-            else:
-                # Per PC Locale: usa finestra standard
-                cv2.imshow(f"Tracker Debug", canvas)
-                cv2.waitKey(1)
+            cv2.imshow(f"Tracker Debug", canvas)
+            cv2.waitKey(1)
 
             return True
 

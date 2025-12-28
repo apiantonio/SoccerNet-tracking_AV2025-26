@@ -1,7 +1,7 @@
 import os
 import json
 import numpy as np
-from src.utils.bbox_operations import BBoxOperations
+from utils.bbox_operations import BBoxOperations
 
 
 class BehaviorAnalyzer:
@@ -37,7 +37,7 @@ class BehaviorAnalyzer:
             print(f"Tracking file mancante per {sequence_name}. Salto behaviour.")
             return
 
-        print(f"Analisi Behaviour su: {sequence_name}")
+        print(f"Analisi Behaviour su sequenza: {sequence_name} |")
 
         # 1. Parsing delle ROI utilizzando BBoxOperations
         # Passiamo le dimensioni hardcoded (1920x1080) perché qui non carichiamo le immagini
