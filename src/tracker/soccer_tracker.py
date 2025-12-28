@@ -1,360 +1,255 @@
 import os
 import torch
 import gc
-import time 
+import time
 import shutil
-import yaml
-import cv2
-import json  # Aggiunto per leggere config ROI
-import numpy as np
+import json
 from ultralytics import YOLO
-from utils.field_masking import *
+import cv2
+import numpy as np
+import sys
+
+# IMPORT UTILS
+from src.utils.field_masking import *
+from src.utils.bbox_operations import BBoxOperations
+from src.utils.bbox_drawer import BBoxDrawer
+
+# --- FIX PER COLAB: Importa patch per visualizzazione ---
+try:
+    from google.colab.patches import cv2_imshow
+    from IPython.display import clear_output
+    IS_COLAB = True
+except ImportError:
+    IS_COLAB = False
 
 class SoccerTracker:
     def __init__(self, config):
-        """
-        Inizializza il tracker leggendo i parametri dal config.
-        config: dizionario caricato da main_config.yaml
-        """
+        """Inizializza il tracker leggendo i parametri dal config."""
         self.config = config
-        
-        self.model_path = config['paths']['detection_model']
-        self.tracker_cfg_path = config['paths']['tracker_config']
-        self.conf = config['tracker']['conf']
-        self.iou = config['tracker']['iou']
-        self.batch_size = config['tracker']['batch']
-        self.use_field_mask = config['tracker'].get('field_mask', True)
+        self.paths = config['paths']
+        self.sets = config['tracker']
 
-        tracker_cfg = os.path.basename(self.tracker_cfg_path)
-        tracker_cfg = yaml.safe_load(open(self.tracker_cfg_path, 'r'))
-        self.with_reid = tracker_cfg.get('with_reid', False)
+        print(f"Init YOLO: {self.paths['detection_model']}")
+        self.model = YOLO(self.paths['detection_model'])
 
-        self.device = config['tracker']['device']
-        self.output_folder = config['paths']['output_folder']
-        self.classes = config['tracker'].get('classes', [0])
-        self.verbose = config['tracker'].get('verbose', False)
-        
-        # Parametri per ottimizzazione memoria
-        self.imgsz = config['tracker'].get('imgsz', 1088)
-        self.half = config['tracker'].get('half', False)
-        
-        # Variabili di supporto
-        self._mask_frequency = config['tracker'].get('mask_frequency', 1)  # Numero di frame tra un aggiornamento della maschera
-        self._buffer_size = config['tracker'].get('buffer_size', 250)      # Numero di frame dopo i quali scrivere su file
-        
-        # Per debug mode
-        debug_cfg = config.get('debug', False)
-        
-        # Inizializza flag a False
+        self.drawer = BBoxDrawer()
+        self.tracker_cfg_path = self.paths['tracker_config']
+        self.output_folder = self.paths['output_folder']
+
+        self.imgsz = self.sets.get('imgsz', 1088)
+        self.conf = self.sets.get('conf', 0.2)
+        self.iou = self.sets.get('iou', 0.7)
+        self.batch_size = self.sets.get('batch', 16)
+        self.device = self.sets.get('device', 0)
+        self.classes = self.sets.get('classes', [0])
+        self.verbose = self.sets.get('verbose', False)
+        self.half = self.sets.get('half', False)
+
+        self.use_field_mask = self.sets.get('use_field_mask', True)
+        self.mask_frequency = self.sets.get('mask_frequency', 1)
+        self.buffer_size = self.sets.get('buffer_size', 250)
+
+        # Flag Debug
         self.debug = False
-        self.show_track = False
         self.show_behaviour = False
         self.show_mask_overlay = False
-       
-        if isinstance(debug_cfg, dict):
-            # Se arriva dal main.py processato (è un dizionario)
+        self.show_track = False
+
+        debug_cfg = config.get('debug', False)
+
+        if debug_cfg is True or isinstance(debug_cfg, dict):
             self.debug = True
-            self.show_track = debug_cfg.get('show_track', False)
-            self.show_behaviour = debug_cfg.get('show_behaviour', False)
-            self.show_mask_overlay = debug_cfg.get('show_mask', False)
-            self.batch_size = 1 # altrimenti non funziona bene la visualizzazione
-            self.color_cache = {} 
-        elif debug_cfg is True:
-            # Se attivato manualmente nel yaml come 'True' generico
-            self.debug = True
-            self.show_track = True
-            self.show_behaviour = True
-            self.show_mask_overlay = True
+            # Su Colab forziamo batch=1 per permettere la visualizzazione frame-by-frame
             self.batch_size = 1
-            self.color_cache = {}
-        
-        # Per visualizzazione debug
-        self.roi_path = config['paths']['roi_config']
+
+            if isinstance(debug_cfg, dict):
+                self.show_mask_overlay = debug_cfg.get('show_mask', False)
+                self.show_behaviour = debug_cfg.get('show_behaviour', False)
+                self.show_track = debug_cfg.get('show_track', False)
+            else:
+                self.show_mask_overlay = True
+                self.show_behaviour = True
+                self.show_track = True
+
+        # Caricamento ROI (solo se debug è attivo)
         self.roi_data = {}
-        if os.path.exists(self.roi_path):
-            with open(self.roi_path, 'r') as f:
-                self.roi_data = json.load(f)
-        else:
-            print(f"⚠️ ROI Config non trovato: {self.roi_path}")
-
-        # Palette colori
-        self.COLOR_ROI1 = (0, 0, 255)       # Rosso
-        self.COLOR_ROI2 = (255, 0, 0)       # Blu
-        self.COLOR_TEXT_BG = (40, 40, 40)   # Grigio scuro
-        self.COLOR_TEXT = (255, 255, 255)   # Bianco
-    
-        print(f"🔄 Caricamento Modello YOLO: {self.model_path}")
-        self.model = YOLO(self.model_path)
-        
-        if self.with_reid:
-            print(f"🔍 ReID abilitato.\n")
-        else:
-            print("🔍 ReID non abilitato.\n")
-
-        
-    def _get_id_color(self, track_id):
-        """Genera un colore univoco e consistente per ogni track_id."""
-        track_id = int(track_id)
-        if track_id not in self.color_cache:
-            np.random.seed(track_id)
-            color = np.random.randint(50, 255, size=3).tolist()
-            self.color_cache[track_id] = tuple(color)
-        return self.color_cache[track_id]
-
-    # --- METODI HELPER PORTATI DAL VISUALIZER TODO Refactoring ---
-    def _get_absolute_roi(self, roi_relative, img_w, img_h):
-        x = int(roi_relative['x'] * img_w)
-        y = int(roi_relative['y'] * img_h)
-        w = int(roi_relative['width'] * img_w)
-        h = int(roi_relative['height'] * img_h)
-        return x, y, w, h
-
-    def _draw_transparent_box(self, img, pt1, pt2, color, alpha=0.4):
-        overlay = img.copy()
-        cv2.rectangle(overlay, pt1, pt2, color, -1)
-        cv2.addWeighted(overlay, alpha, img, 1 - alpha, 0, img)
-
-    def _draw_stylish_tag(self, img, text, center_x, top_y, bg_color=(0,0,0)):
-        font = cv2.FONT_HERSHEY_DUPLEX
-        font_scale = 0.5
-        thickness = 1
-        (text_w, text_h), baseline = cv2.getTextSize(text, font, font_scale, thickness)
-        
-        x1 = int(center_x - text_w // 2 - 4)
-        y1 = int(top_y)
-        x2 = int(center_x + text_w // 2 + 4)
-        y2 = int(top_y + text_h + 10)
-        
-        self._draw_transparent_box(img, (x1, y1), (x2, y2), bg_color, alpha=0.6)
-        
-        text_x = int(center_x - text_w // 2)
-        text_y = int(top_y + text_h + 5)
-        cv2.putText(img, text, (text_x, text_y), font, font_scale, self.COLOR_TEXT, thickness, cv2.LINE_AA)
-    # --------------------------------------------
+        if self.debug:
+            try:
+                roi_path = self.paths['roi_config']
+                with open(roi_path, 'r') as f:
+                    self.roi_data = json.load(f)
+            except Exception:
+                print(f"ROI Config non trovato o errore: {self.paths['roi_config']}")
 
     def track_sequence(self, sequence_name):
-        """
-        Esegue il tracking. Se show_video=True usa lo stile del Visualizer.
-        """
+        """Esegue il tracking su una sequenza specifica."""
 
-        source_path = os.path.join(self.config['paths']['input_folder'], sequence_name, "img1")
-        output_dir = self.config['paths']['output_folder']
+        # 1. Configurazione Percorsi
+        source_path = os.path.join(self.paths['input_folder'], sequence_name, "img1")
+        output_dir = self.paths['output_folder']
         os.makedirs(output_dir, exist_ok=True)
-        
-        # Pulizia del nome file (Rimuove SNMOT-) per comaptibilità con il simulator
-        clean_seq_name = sequence_name.replace("SNMOT-", "")
-        output_filename = f"tracking_{clean_seq_name}_{self.config['settings']['team_id']}.txt"
-        output_path = os.path.join(output_dir, output_filename)
-        
-        print(f"\n🚀 Avvio Tracking: {sequence_name} | imgsz: {self.imgsz} | conf: {self.conf} | iou: {self.iou} | batch: {self.batch_size} | reid: {self.with_reid} | device: {self.device} | half-precision (FP16): {self.half} | verbose: {self.verbose} | debug: (track: {self.show_track}, behav: {self.show_behaviour})")
 
+        output_filename = f"tracking_{sequence_name}_{self.config['settings']['team_id']}.txt"
+        output_path = os.path.join(output_dir, output_filename)
+
+        print(f"Avvio Tracking: {sequence_name} | imgsz: {self.imgsz} | conf: {self.conf} | debug: (track: {self.show_track}, mask: {self.show_mask_overlay})")
+
+        # 2. Pulizia Memoria
         gc.collect()
         torch.cuda.empty_cache()
 
-        results = self.model.track(
-            source=source_path,
-            tracker=self.tracker_cfg_path,
-            imgsz=self.imgsz,
-            conf=self.conf,
-            iou=self.iou,
-            batch=self.batch_size,
-            half=self.half,
-            device=self.device,
-            classes=self.classes,
-            verbose=self.verbose,
-            persist=True,
-            stream=True, 
-            show=False 
-        )
-        
-        window_name = f"Tracking Debug (Visualizer Style) - {sequence_name}"
-        if self.debug:
-            cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
-            cv2.resizeWindow(window_name, 1920, 1080)
-    
-        tracking_start_time = time.time()
-        
-        try:
-            with open(output_path, 'w') as f:
-                buffer = [] # Buffer per scrittura file
-                
-                for frame_idx, r in enumerate(results):
-                    
-                    if self.use_field_mask: # FIELD MASKING & FILTERING:
-                        # Genera la maschera del campo per il frame corrente
-                        # NOTA: Se è troppo lento, puoi considerare di ridimensionare 
-                        # l'immagine prima di calcolare la maschera o calcolarla ogni N frame.
-                        if frame_idx % self._mask_frequency == 0:  # Aggiorna la maschera ogni N frame
-                            field_mask = get_field_mask(r.orig_img)
-                            # # Disegna la roi da cui la maschera è stata calcolata (per debug)
-                            # if self.debug and self.show_mask_overlay:
-                            #     tl = (int(r.orig_img.shape[1] * REL_X1), int(r.orig_img.shape[0] * REL_Y1))
-                            #     tr = (int(r.orig_img.shape[1] * REL_X2), int(r.orig_img.shape[0] * REL_Y1))
-                            #     bl = (int(r.orig_img.shape[1] * REL_X3), int(r.orig_img.shape[0] * REL_Y2))
-                            #     br = (int(r.orig_img.shape[1] * REL_X4), int(r.orig_img.shape[0] * REL_Y2))
-                            #     cv2.line(r.orig_img, tl, tr, (255, 0, 0), 2)
-                            #     cv2.line(r.orig_img, tr, br, (255, 0, 0), 2)
-                            #     cv2.line(r.orig_img, br, bl, (255, 0, 0), 2)
-                            #     cv2.line(r.orig_img, bl, tl, (255, 0, 0), 2)
-                    else:
-                        # Maschera piena (tutto il frame)
-                        h_img, w_img = r.orig_img.shape[:2]
-                        field_mask = np.ones((h_img, w_img), dtype=np.uint8) * 255
-                    
-                    # Liste per contenere solo i dati validi (dentro il campo)
-                    valid_boxes_xywh = []
-                    valid_boxes_xyxy = []
-                    valid_ids = []
-                    valid_confs = []
+        # 3. Parametri YOLO
+        track_params = {
+            'source': source_path,
+            'tracker': self.tracker_cfg_path,
+            'imgsz': self.imgsz,
+            'conf': self.conf,
+            'iou': self.iou,
+            'batch': self.batch_size,
+            'device': self.device,
+            'classes': self.classes,
+            'verbose': self.verbose,
+            'persist': True,
+            'stream': True,
+            'show': False # Importante: disabilita show nativo di YOLO
+        }
 
-                    # Controlla se YOLO ha trovato qualcosa
-                    if r.boxes is not None and r.boxes.id is not None:
-                        # Estrai i dati in numpy per iterazione veloce
-                        boxes_xyxy = r.boxes.xyxy.cpu().numpy()
-                        boxes_xywh = r.boxes.xywh.cpu().numpy()
-                        track_ids = r.boxes.id.cpu().numpy()
-                        confs = r.boxes.conf.cpu().numpy()
+        results = self.model.track(**track_params)
 
-                        for i, box in enumerate(boxes_xyxy):
-                            x1, y1, x2, y2 = box
-                            
-                            # Calcola il punto dei piedi (base centrale del box)
-                            feet_point = (int((x1 + x2) / 2), int(y2))
-                            
-                            # Verifica se è nel campo usando la funzione di utils
-                            if is_point_on_field(feet_point, field_mask, bottom_tolerance=40):
-                                valid_boxes_xywh.append(boxes_xywh[i])
-                                valid_boxes_xyxy.append(box)
-                                valid_ids.append(track_ids[i])
-                                valid_confs.append(confs[i])
-                            else:
-                                # DEBUG: Punto del bounding box ignorato
-                                cv2.drawMarker(r.orig_img, feet_point, (0, 0, 255), markerType=cv2.MARKER_TILTED_CROSS, markerSize=10, thickness=2)
-                                pass
-                    
-                    # --- LOGICA VISUALIZZAZIONE "DEBUG MODE" ---
-                    if self.debug:
-                        frame_display = r.orig_img.copy()
-                        h_img, w_img = frame_display.shape[:2]
-                        
-                        # Visualizza la maschera in overlay verdino per debug
-                        if self.show_mask_overlay:
-                            # Crea overlay verde dove la maschera è attiva
-                            green_overlay = np.zeros_like(frame_display)
-                            green_overlay[field_mask > 0] = [0, 255, 0] # Canale G
-                            cv2.addWeighted(frame_display, 1.0, green_overlay, 0.2, 0, frame_display)
-                            # Disegna contorno campo
-                            contours, _ = cv2.findContours(field_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                            cv2.drawContours(frame_display, contours, -1, (0, 255, 0), 2)
-                        
-                        # Visualizza ROI e conteggi comportamento
-                        if self.show_behaviour:
-                            # 1. Recupero coord. assolute ROI
-                            roi1_rect = self._get_absolute_roi(self.roi_data.get('roi1'), w_img, h_img) if 'roi1' in self.roi_data else None
-                            roi2_rect = self._get_absolute_roi(self.roi_data.get('roi2'), w_img, h_img) if 'roi2' in self.roi_data else None
+        # 4. Inizializzazione Ciclo
+        field_mask = None
+        start_time = time.time()
 
-                            # 2. Calcolo conteggi LIVE per le ROI (Passaggio preliminare)
-                            count1, count2 = 0, 0
-                            for i, box in enumerate(valid_boxes_xywh):
-                                bx, by, bw, bh = box
-                                feet_x = int(bx)
-                                feet_y = int(by + bh / 2)
-                                
-                                if roi1_rect:
-                                    rx, ry, rw, rh = roi1_rect
-                                    if rx <= feet_x <= rx + rw and ry <= feet_y <= ry + rh:
-                                        count1 += 1
-                                if roi2_rect:
-                                    rx, ry, rw, rh = roi2_rect
-                                    if rx <= feet_x <= rx + rw and ry <= feet_y <= ry + rh:
-                                        count2 += 1
+        with open(output_path, 'w') as f:
+            buffer = []
 
-                            # 3. Disegno Sfondi ROI e Header
-                            if roi1_rect:
-                                rx, ry, rw, rh = roi1_rect
-                                self._draw_transparent_box(frame_display, (rx, ry), (rx+rw, ry+rh), self.COLOR_ROI1, alpha=0.15)
-                                cv2.rectangle(frame_display, (rx, ry), (rx+rw, ry+rh), self.COLOR_ROI1, 2)
-                                self._draw_stylish_tag(frame_display, f"ROI 1 | Players: {count1}", rx + rw//2, ry - 25, bg_color=self.COLOR_ROI1)
+            # 5. Loop sui Frame
+            for frame_idx, r in enumerate(results):
+                img = r.orig_img
+                frame_log_id = frame_idx + 1
 
-                            if roi2_rect:
-                                rx, ry, rw, rh = roi2_rect
-                                self._draw_transparent_box(frame_display, (rx, ry), (rx+rw, ry+rh), self.COLOR_ROI2, alpha=0.15)
-                                cv2.rectangle(frame_display, (rx, ry), (rx+rw, ry+rh), self.COLOR_ROI2, 2)
-                                self._draw_stylish_tag(frame_display, f"ROI 2 | Players: {count2}", rx + rw//2, ry - 25, bg_color=self.COLOR_ROI2)
+                # A. Gestione Maschera Campo
+                if self.use_field_mask:
+                    # Calcola maschera se: frequenza raggiunta OR prima volta OR serve per debug visivo
+                    if frame_idx % self.mask_frequency == 0 or field_mask is None or self.show_mask_overlay:
+                        field_mask = get_field_mask(img)
+                else:
+                    if field_mask is None:
+                        field_mask = np.ones(img.shape[:2], dtype=np.uint8) * 255
 
-                        # visualizza i box tracciati
-                        if self.show_track:
-                            # Disegna solo i giocatori VALIDI (in campo)
-                            for i, box in enumerate(valid_boxes_xyxy):
-                                x1, y1, x2, y2 = map(int, box)
-                                tid = int(valid_ids[i])
-                                conf = valid_confs[i]
-                                color = self._get_id_color(tid)
-                                
-                                cv2.rectangle(frame_display, (x1, y1), (x2, y2), color, 2)
-                                feet_x = int((x1 + x2) / 2)
-                                feet_y = int(y2)
-                                cv2.circle(frame_display, (feet_x, feet_y), 4, color, -1)
+                det_to_draw = []
 
-                                # Tag ID | Conf
-                                label_text = f"ID {tid} | {conf:.2f}"
-                                self._draw_stylish_tag(frame_display, label_text, feet_x, feet_y + 8, bg_color=self.COLOR_TEXT_BG)
+                # B. Estrazione Detection
+                if r.boxes is not None and r.boxes.id is not None:
+                    boxes_xywh = r.boxes.xywh.cpu().numpy()
+                    track_ids = r.boxes.id.cpu().numpy()
 
-                        # Info Frame in basso
-                        info_text = f"Frame: {frame_idx + 1} | On Field: {len(valid_ids)} | Ignored: {len(r.boxes) - len(valid_ids) if r.boxes else 0}"
-                        cv2.putText(frame_display, info_text, (20, h_img - 20), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (200, 200, 200), 2)
+                    for box, t_id in zip(boxes_xywh, track_ids):
+                        tl_x, tl_y, w, h = BBoxOperations.center_to_top_left(box)
+                        feet_point = BBoxOperations.get_feet_point((tl_x, tl_y, w, h))
 
-                        cv2.imshow(window_name, frame_display)
-                        
-                        if cv2.waitKey(1) & 0xFF == ord('q'):
-                            print(f"⏩ Skip sequence {sequence_name}...")
-                            break
+                        # Filtro Logico
+                        if not self.use_field_mask or is_point_on_field(feet_point, field_mask, bottom_tolerance=40):
+                            buffer.append(f"{frame_log_id},{int(t_id)},{tl_x},{tl_y},{w},{h}\n")
+                            if self.debug:
+                                det_to_draw.append((tl_x, tl_y, w, h, int(t_id)))
 
-                    if r.boxes is None or r.boxes.id is None:
-                        continue
-                    
-                    # Scrittura su file (bufferizzata)
-                    for i, box in enumerate(valid_boxes_xywh):
-                        track_id = valid_ids[i]
-                        x, y, w, h = box
-                        # Coordinate Top-Left come richiesto dal formato output
-                        x1 = x - (w / 2)
-                        y1 = y - (h / 2)
-                        # Scrivi nel buffer
-                        buffer.append(f"{frame_idx + 1},{int(track_id)},{int(x1)},{int(y1)},{int(w)},{int(h)}\n")
-                    
-                    # Scrivi il buffer solo alla fine per evitare I/O frequenti
-                    if (frame_idx + 1) % self._buffer_size == 0:
-                        f.writelines(buffer)
-                        buffer.clear()
-                        f.flush()
-                        
-                # Scrivi ciò che è rimasto nel buffer alla fine del video (serve se il video ha un numero di frame non divisibile ocn buffer size)
-                if buffer:
+                # C. Visualizzazione Debug (Safety Check)
+                if self.debug:
+                    # Se la visualizzazione fallisce, disattiviamo il debug per evitare crash continui
+                    if not self._drawer_debug(img, det_to_draw, field_mask, sequence_name, frame_idx):
+                        print("Errore visualizzazione: disattivo debug grafico.")
+                        self.debug = False
+
+                # D. Scrittura su Disco
+                if frame_log_id % self.buffer_size == 0:
                     f.writelines(buffer)
                     buffer.clear()
                     f.flush()
-        
-        finally:
-            if self.debug:
-                try:
-                    cv2.destroyWindow(window_name)
-                    cv2.waitKey(1)
-                except Exception:
-                    pass
-        
-        elapsed_time = time.time() - tracking_start_time
-        print(f"⏱️ Tracking e scrittura completato in {elapsed_time:.2f} secondi.")
-        
+
+            # 6. Flush Finale
+            if buffer:
+                f.writelines(buffer)
+                f.flush()
+
+        # 7. Chiusura Debug (Solo locale)
+        if self.debug and not IS_COLAB:
+            try:
+                cv2.destroyAllWindows()
+                cv2.waitKey(1)
+            except Exception:
+                pass
+
+        # 8. Conclusione
+        elapsed_time = time.time() - start_time
+        print(f"Tracking completato in {elapsed_time:.2f} secondi.")
+
         self._copy_tracker_config()
         torch.cuda.empty_cache()
+
         return output_path
-    
+
+    def _drawer_debug(self, img, det_to_draw, field_mask, sequence_name, frame_idx):
+        """
+        Disegna il frame di debug.
+        Supporta sia Colab (cv2_imshow) che Locale (cv2.imshow).
+        """
+        try:
+            # Lavora su una copia per non sporcare l'originale
+            canvas = img.copy()
+            h_img, w_img = canvas.shape[:2]
+
+            # 1. Maschera Campo
+            if self.show_mask_overlay and field_mask is not None:
+                green_overlay = np.zeros_like(canvas)
+                green_overlay[field_mask > 0] = [0, 255, 0]
+                cv2.addWeighted(canvas, 1.0, green_overlay, 0.3, 0, canvas) # 0.3 = Opacità maschera
+                contours, _ = cv2.findContours(field_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                cv2.drawContours(canvas, contours, -1, (0, 255, 0), 2)
+
+            # 2. Behaviour (ROI)
+            if self.show_behaviour:
+                for key in ['roi1', 'roi2']:
+                    if key in self.roi_data:
+                        roi_rect = BBoxOperations.get_absolute_roi(self.roi_data[key], w_img, h_img)
+                        count = 0
+                        for (x, y, w, h, _) in det_to_draw:
+                            feet_point = BBoxOperations.get_feet_point((x, y, w, h))
+                            if BBoxOperations.is_point_in_rect(roi_rect, feet_point):
+                                count += 1
+                        self.drawer.draw_roi(canvas, roi_rect, f"{key.upper()}: {count}", key)
+
+            # 3. Tracking (Box)
+            if self.show_track:
+                for (x, y, w, h, t_id) in det_to_draw:
+                    self.drawer.draw_player(canvas, (x, y, w, h), t_id)
+
+            # 4. Info
+            info_text = f"LIVE: {sequence_name} | Frame: {frame_idx}"
+            cv2.putText(canvas, info_text, (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 255), 2)
+
+            # 5. Visualizzazione
+            if IS_COLAB:
+                # Per Colab: ridimensiona per velocità e usa cv2_imshow + clear_output
+                display_img = cv2.resize(canvas, (0, 0), fx=0.6, fy=0.6)
+                clear_output(wait=True)
+                cv2_imshow(display_img)
+            else:
+                # Per PC Locale: usa finestra standard
+                cv2.imshow(f"Tracker Debug", canvas)
+                cv2.waitKey(1)
+
+            return True
+
+        except Exception as e:
+            return False
+
     def _copy_tracker_config(self):
-        if os.path.exists(self.tracker_cfg_path):
-            cfg_filename = os.path.basename(self.tracker_cfg_path)
-            self.dst_cfg_path = os.path.join(self.output_folder, cfg_filename)
+        if self.tracker_cfg_path and os.path.exists(str(self.tracker_cfg_path)):
             try:
-                shutil.copy(self.tracker_cfg_path, self.dst_cfg_path)
-            except Exception as e:
-                print(f"⚠️ Impossibile copiare il config del tracker: {e}")
+                src_path = str(self.tracker_cfg_path)
+                cfg_filename = os.path.basename(src_path)
+                dst_path = os.path.join(self.paths['output_folder'], cfg_filename)
+                shutil.copy(src_path, str(dst_path))
+            except Exception:
+                pass
