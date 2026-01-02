@@ -23,4 +23,12 @@ Qui vengono salvati i pesi dei modelli usati.
   orcid = {0000-0001-5950-6979, 0000-0003-3783-7069},
   license = {AGPL-3.0}
 }
+
+@software{easychamp_player_detection_2025,
+  author = {EasyChamp},
+  title = {EasyChamp Player Detection YOLOv8},
+  year = {2025},
+  url = {https://huggingface.co/aabyzov/easychamp-player-detection-yolov8},
+  publisher = {Hugging Face}
+}
 ```

@@ -62,7 +62,7 @@ def _read_behavior(path: str) -> Dict[Tuple[int, int], int]:
     return out
 
 
-def compute_nmae_from_behavior_files(dataset_root: str, predictions_root: str, group: str) -> dict:
+def compute_nmae_from_behavior_files(dataset_root: str, predictions_root: str, group: str, sequences: List[str] = None) -> dict:
     """
     Computes MAE and nMAE globally over all videos and both ROI ids.
     """
@@ -70,7 +70,10 @@ def compute_nmae_from_behavior_files(dataset_root: str, predictions_root: str, g
     n = 0
     has_all = True
 
-    video_ids = list_video_ids(dataset_root)
+    if sequences is not None:
+        video_ids = sequences
+    else:
+        video_ids = list_video_ids(dataset_root)
 
     for vid in video_ids:
         gt_path = os.path.join(dataset_root, vid, "gt", "behavior_gt.txt")

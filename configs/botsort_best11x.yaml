@@ -3,10 +3,10 @@
 
 tracker_type: botsort     # (str) Tracker backend: botsort|bytetrack; choose botsort to enable BoT-SORT features
 track_high_thresh: 0.35   # (float) First-stage match threshold; raise for cleaner tracks, lower to keep more
-track_low_thresh: 0.1    # (float) Second-stage threshold for low-score matches; balances recovery vs drift
-new_track_thresh: 0.4    # (float) Start a new track if no match ≥ this; higher reduces false tracks
-track_buffer: 180         # (int) Frames to keep lost tracks alive; higher handles occlusion, increases ID switches risk
-match_thresh: 0.95        # (float) Association similarity threshold (IoU/cost); tune with detector quality
+track_low_thresh: 0.20    # (float) Second-stage threshold for low-score matches; balances recovery vs drift
+new_track_thresh: 0.40    # (float) Start a new track if no match ≥ this; higher reduces false tracks
+track_buffer: 150         # (int) Frames to keep lost tracks alive; higher handles occlusion, increases ID switches risk
+match_thresh: 0.90        # (float) Association similarity threshold (IoU/cost); tune with detector quality
 fuse_score: True          # (bool) Fuse detection score with motion/IoU for matching; stabilizes weak detections
 
 # BoT-SORT specifics
@@ -14,7 +14,7 @@ gmc_method: sparseOptFlow # (str) Global motion compensation: sparseOptFlow|orb|
 
 # ReID model related thresh
 with_reid: False           # (bool) Enable ReID model use; needs extra model and compute
-proximity_thresh: 0.6    # (float) Min IoU to consider tracks proximate for ReID; higher is stricter
-appearance_thresh: 0.35   # (float) Min appearance similarity for ReID; raise to avoid identity swaps
+proximity_thresh: 0.50    # (float) Min IoU to consider tracks proximate for ReID; higher is stricter
+appearance_thresh: 0.20   # (float) Min appearance similarity for ReID; raise to avoid identity swaps
 model: auto               # (str) ReID model name/path; "auto" uses detector features if available
 reid_model: models/osnet_x1_0_soccernet.pt #osnet_x1_0_msmt17.pt # (str) ReID model file; choose a lightweight model for speed

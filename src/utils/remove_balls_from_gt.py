@@ -110,7 +110,7 @@ if __name__ == "__main__":
     # --- CONFIGURAZIONE ---
     # Percorso della cartella contenente le sequenze (es. ./tracking/test)
     # Assicurati che punti alla cartella che contiene le sottocartelle (060, 061...)
-    DATASET_PATH = "./tracking/test" 
+    DATASET_PATH = "SIMULATOR/lecture_example_from_training/test_set/videos"
     # ----------------------
 
     print(f"Avvio rimozione palle dai GT in: {os.path.abspath(DATASET_PATH)}")

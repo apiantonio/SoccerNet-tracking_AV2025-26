@@ -410,8 +410,8 @@ def simulate_and_eval_hota05(
 
 if __name__ == "__main__":
     simulate_and_eval_hota05(
-        dataset_root="./tracking/test",
-        predictions_root='./output/test_botsortprova1', #"./output/test_all_conf20_iou70_botsort8_reid",
+        dataset_root="SIMULATOR/lecture_example_from_training/test_set/videos",
+        predictions_root='SIMULATOR/lecture_example_from_training/Predictions_folder', #"./output/test_all_conf20_iou70_botsort8_reid",
         group="16",
         fps=200.0,
         split="test",

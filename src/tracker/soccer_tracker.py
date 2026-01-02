@@ -88,7 +88,7 @@ class SoccerTracker:
         output_filename = f"tracking_{sequence_name}_{self.team_id}.txt"
         output_path = os.path.join(output_dir, output_filename)
 
-        print(f"\n- Avvio Tracking su sequenza {sequence_name} |")
+        # print(f"\n- Avvio Tracking su sequenza {sequence_name} |")
         # 2. Pulizia Memoria
         gc.collect()
         torch.cuda.empty_cache()
@@ -113,7 +113,7 @@ class SoccerTracker:
 
         # 4. Inizializzazione Ciclo
         field_mask = None
-        start_time = time.time()
+        # start_time = time.time()
 
         with open(output_path, 'w') as f:
             buffer = []
@@ -175,9 +175,9 @@ class SoccerTracker:
             except Exception:
                 pass
 
-        # 8. Conclusione
-        elapsed_time = time.time() - start_time
-        print(f"Tracking completato in {elapsed_time:.2f} secondi.")
+        # Conclusione
+        # elapsed_time = time.time() - start_time
+        # print(f"Tracking completato in {elapsed_time:.2f} secondi.")
 
         self._copy_tracker_config()
         torch.cuda.empty_cache()

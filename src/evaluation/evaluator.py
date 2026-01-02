@@ -3,6 +3,7 @@ import shutil
 import json
 import numpy as np
 from datetime import datetime
+import yaml
 from utils.bbox_operations import BBoxOperations
 from utils.evaluation_helper import build_trackeval_structure, compute_metrics_with_details, compute_nmae_from_behavior_files
 # ---- NumPy 2.x compatibility for TrackEval (older code uses deprecated aliases) ----
@@ -183,7 +184,8 @@ class Evaluator:
                 beh_metrics = compute_nmae_from_behavior_files(
                     dataset_root=self.input_folder,
                     predictions_root=self.output_folder,
-                    group=self.team_id
+                    group=self.team_id,
+                    sequences=valid_sequences
                 )
                 # Usa .get con default 0.0 per sicurezza
                 nmae = beh_metrics.get('nMAE', 0.0) or 0.0
@@ -202,7 +204,7 @@ class Evaluator:
                 nmae = self._normalize_mae(local_mae)
 
             # Salviamo il nMAE calcolato dentro il dizionario della riga
-            row['nMAE'] = nmae
+            row['nMAE'] = round(nmae, 6)
             final_rows.append(row)
 
             # Stampa riga tabella
@@ -243,9 +245,17 @@ class Evaluator:
         filename = f"results_{self.team_id}_{timestamp}.json"
         save_path = os.path.join(self.output_folder, filename)
 
+        tracker_cfg_path = self.config['paths']['tracker_config']
+        if tracker_cfg_path and os.path.exists(tracker_cfg_path):
+            tracker_cfg = yaml.safe_load(open(tracker_cfg_path, 'r'))
+        
         structured_data = {
-            "meta": {"timestamp": timestamp, "team_id": self.team_id},
+            "meta": {
+                "timestamp": timestamp,
+                "team_id": self.team_id
+            },
             "main_config": self.config,
+            "tracker_config": tracker_cfg,
             "metrics_overall": {
                 "HOTA_05": round(float(avg_hota), 6),
                 "nMAE": round(float(global_nmae), 6),
@@ -264,7 +274,6 @@ class Evaluator:
             pass
 
         # 2. Append al Tracker Config
-        tracker_cfg_path = self.config['paths']['tracker_config']
         if tracker_cfg_path and os.path.exists(tracker_cfg_path):
             cfg_name = os.path.basename(tracker_cfg_path)
             saved_cfg_path = os.path.join(self.output_folder, cfg_name)

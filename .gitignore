@@ -20,6 +20,7 @@ venv/
 # --- IDE Settings ---
 .vscode/
 .idea/
+.gemini/
 
 # --- Modelli Salvati ---
 models/*.pt

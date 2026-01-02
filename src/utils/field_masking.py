@@ -82,7 +82,7 @@ def get_field_mask(frame):
     mask_clean = cv2.morphologyEx(mask_clean, cv2.MORPH_CLOSE, k_close, iterations=2)
 
     # ---------------------------------------------------------
-    # STEP 4: Selezione dell'Area Maggiore (FloodFill / Contorni)
+    # STEP 4: Selezione dell'Area Maggiore
     # ---------------------------------------------------------
     contours, _ = cv2.findContours(mask_clean, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -99,7 +99,6 @@ def get_field_mask(frame):
         # Calcola Convex Hull per regolarizzare la forma (il campo è convesso)
         hull = cv2.convexHull(largest_contour)
 
-        # --- Ottimizzazione Bordi ---
         # Spesso la hull include angoli di spalti in alto.
         # Possiamo migliorare approssimando a un poligono con meno vertici
         epsilon = 0.005 * cv2.arcLength(hull, True)

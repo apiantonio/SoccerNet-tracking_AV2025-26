@@ -23,6 +23,8 @@ def finalize_arguments(args, cfg):
         cfg['paths']['output_folder'] = args.output_folder
     if args.roi_config:
         cfg['paths']['roi_config'] = args.roi_config
+    if args.seq:
+        cfg['settings']['sequences'] = args.seq
     if args.imgsz:
         cfg['tracker']['imgsz'] = args.imgsz
     if args.half is not None:
@@ -54,34 +56,78 @@ def finalize_arguments(args, cfg):
     return cfg
 
 
+def format_time(seconds):
+    """Formatta i secondi in un formato leggibile (ore, minuti e secondi)."""
+    if seconds is None or seconds < 0:
+        return "N/A"
+    minutes, seconds = divmod(seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+
+    if hours > 0:
+        return f"{int(hours)}h {int(minutes)}m {int(seconds)}s"
+    elif minutes > 0:
+        return f"{int(minutes)}m {int(seconds)}s"
+    else:
+        return f"{int(seconds)}s"
+    
 def main():
-    """
-    Main function per eseguire la pipeline SoccerNet.
+    """Funzione principale per l'esecuzione della pipeline di analisi video SoccerNet.
 
-    Opzioni step:
-        - tracking: esegue solo il tracking
-        - behaviour: esegue solo l'analisi del comportamento
-        - visualizer: genera solo i video visualizzati
-        - eval: esegue solo la valutazione (HOTA)
-        - all: esegue tutta la pipeline (default)
+    Questa funzione orchestra le diverse fasi della pipeline: tracking, analisi comportamentale,
+    valutazione e visualizzazione. È possibile eseguire l'intera pipeline o solo fasi specifiche
+    utilizzando gli argomenti da linea di comando.
 
-    :param --config: Path al file di configurazione YAML
-    :param --step: Step della pipeline da eseguire
-    :param --seq: Lista di sequenze da processare (es. SNMOT-060), o "all" per tutte le sequenze nel folder di input
-    :param --input_folder: (opzionale) Sovrascrivi la cartella di input dal file di config
-    :param --output_folder: (opzionale) Sovrascrivi la cartella di output dal file di config
-    :param --tracker_config: (opzionale) Path al file di configurazione del tracker
-    :param --roi_config: (opzionale) Path al file di configurazione delle ROI
-    :param --imgsz: (opzionale) Sovrascrivi la risoluzione di input del tracker
-    :param --conf: (opzionale) Sovrascrivi la confidenza minima del tracker
-    :param --iou: (opzionale) Sovrascrivi la soglia IOU del tracker
-    :param --batch: (opzionale) Sovrascrivi la dimensione del batch per il tracker
-    :param --half: (opzionale) Usa FP16 per il tracking (se supportato)
-    :param --verbose: (opzionale) Abilita output verboso per il tracker
-    :param --debug: (opzionale) Modalità debug: show_tracks, show_mask, show_behaviour o none per disabilitare
+    Fasi (step) disponibili:
+        - tracking: Esegue il tracciamento degli oggetti (calciatori, pallone) nei video.
+        - behaviour: Analizza i tracciamenti per estrarre comportamenti specifici.
+        - visualizer: Genera video con le informazioni di tracking e analisi sovrapposte.
+        - eval: Esegue la valutazione delle performance del tracking (es. HOTA).
+        - all: Esegue tutte le fasi in sequenza (impostazione predefinita).
 
-    - :Esempio di esecuzione:
-        `python src/main.py --config configs/main_config.yaml --step all --seq SNMOT-060 SNMOT-061 --input_folder data/input --output_folder data/output`
+    Argomenti da linea di comando:
+        --config (-c):
+            Path al file di configurazione principale (YAML). Default: 'configs/main_config.yaml'.
+        --step (-s):
+            Una o più fasi della pipeline da eseguire. Default: ['all'].
+        --seq:
+            Lista di sequenze da processare (es. 'SNMOT-060'), o 'all' per tutte le sequenze
+            nella cartella di input. Default: ['all'].
+        --input_folder (-i):
+            (Opzionale) Sovrascrive il percorso della cartella di input specificato nel file di configurazione.
+        --output_folder (-o):
+            (Opzionale) Sovrascrive il percorso della cartella di output specificato nel file di configurazione.
+        --tracker_config:
+            (Opzionale) Sovrascrive il path al file di configurazione del tracker.
+        --roi_config:
+            (Opzionale) Sovrascrive il path al file di configurazione delle ROI (Region of Interest).
+        --imgsz:
+            (Opzionale) Sovrascrive la risoluzione di input per il modello di tracking.
+        --conf:
+            (Opzionale) Sovrascrive la soglia di confidenza minima per il tracking.
+        --iou:
+            (Opzionale) Sovrascrive la soglia di IOU (Intersection over Union) per il NMS.
+        --batch:
+            (Opzionale) Sovrascrive la dimensione del batch per l'inferenza del tracker.
+        --half (--fp16, -hp):
+            (Opzionale) Abilita l'inferenza a precisione ridotta (FP16) se supportata.
+        --field_mask:
+            (Opzionale) Specifica se utilizzare la maschera del campo per filtrare le detection.
+            Valori possibili: 'True' o 'False'. Default: ['True'].
+        --verbose (-v):
+            (Opzionale) Abilita un output più dettagliato (verboso) durante il tracking.
+        --debug:
+            (Opzionale) Abilita modalità di debug visuale. Valori possibili:
+            'show_tracks', 'show_mask', 'show_behaviour'. 'none' per disabilitare. Default: ['none'].
+
+    Esempio di utilizzo:
+        Eseguire l'intera pipeline su due sequenze specifiche, sovrascrivendo le cartelle di input/output:
+        ```
+        python src/main.py --config configs/main_config.yaml --step all --seq 060 061 --input_folder data/input --output_folder data/output
+        ```
+        Eseguire solo la fase di tracking con una confidenza personalizzata:
+        ```
+        python src/main.py --step tracking --seq 060 --conf 0.35
+        ```
     """
     parser = argparse.ArgumentParser(description="SoccerNet Pipeline")
     parser.add_argument('-c', '--config', type=str, default='configs/main_config.yaml', help='Path al file config')
@@ -126,14 +172,12 @@ def main():
         if sequences == ['all']:
             input_root = cfg['paths']['input_folder']
             sequences = [d for d in os.listdir(input_root) if os.path.isdir(os.path.join(input_root, d))]
-            # sequences = [s for s in sequences if s.startswith("SNMOT")]
     elif cfg['settings'].get('sequences'):  # se sequence non è definito negli argomenti, controlla nel file di config
         sequences = cfg['settings']['sequences']
     else:
         input_root = cfg['paths']['input_folder']
         sequences = [d for d in os.listdir(input_root) if os.path.isdir(os.path.join(input_root, d))]
-        # sequences = [s for s in sequences if s.startswith("SNMOT")]
-
+    
     print(f"Configurazione caricata. Step: {args.step}")
     print(f"Sequenze target: {sequences}")
 
@@ -143,25 +187,53 @@ def main():
     start_tracking_time = time.time()
     if 'all' in args.step or 'tracking' in args.step:
         tracker = SoccerTracker(cfg)
-        for seq in sequences:
+        num_sequences = len(sequences)
+        for i, seq in enumerate(sequences):
             try:
+                print(f"\n[{i + 1}/{num_sequences}] Avvio tracking su '{seq}'...")
+                start_track = time.time()
                 tracker.track_sequence(seq)
+                curr_time = time.time()
+
+                elapsed_time = curr_time - start_tracking_time
+                progress = (i + 1) / num_sequences
+                estimated_total_time = elapsed_time / progress if progress > 0 else 0
+                remaining_time = estimated_total_time - elapsed_time
+
+                print(f"[{i + 1}/{num_sequences}] Fine tracking su '{seq}' in {format_time(curr_time - start_track):>7} | "
+                      f"tascorso/totale: {format_time(elapsed_time):>9} / {format_time(estimated_total_time):<9} circa | "
+                      f"rimanente: {format_time(remaining_time):<9} circa |")
+
             except Exception as e:
                 print(f"Errore tracking su {seq}: {e}")
         end_tracking_time = time.time()
-        print(f"Tempo totale di tracking: {end_tracking_time - start_tracking_time:.2f} secondi")
+        tracking_time = end_tracking_time - start_tracking_time
+        if sequences:
+            mean_tracking_time = tracking_time / len(sequences)
+            print(f"> Tempo totale di tracking: {format_time(tracking_time)} (media: {mean_tracking_time:.2f} secondi/sequenza)")
+        else:
+            print(f"> Tempo totale di tracking: {format_time(tracking_time)}")
+
 
     # --- FASE 2: BEHAVIOUR ---
     start_behaviour_time = time.time()
     if 'all' in args.step or 'behaviour' in args.step:
         analyzer = BehaviorAnalyzer(cfg)
-        for seq in sequences:
+        num_sequences = len(sequences)
+        for i, seq in enumerate(sequences):
             try:
+                print(f"\n[{i + 1}/{num_sequences}] Avvio analisi comportamento su '{seq}'...")
                 analyzer.process_sequence(seq)
             except Exception as e:
                 print(f"Errore behaviour su {seq}: {e}")
         end_behaviour_time = time.time()
-        print(f"Tempo totale di behaviour analysis: {end_behaviour_time - start_behaviour_time:.2f} secondi")
+        behaviour_time = end_behaviour_time - start_behaviour_time
+        if sequences:
+            mean_behaviour_time = behaviour_time / len(sequences)
+            print(f"> Tempo totale di behaviour analysis: {format_time(behaviour_time)} (media: {mean_behaviour_time:.2f} secondi/sequenza)")
+        else:
+            print(f"> Tempo totale di behaviour analysis: {format_time(behaviour_time)}")
+
 
     # --- FASE 3: EVALUATION ---
     start_evaluation_time = time.time()
@@ -173,22 +245,30 @@ def main():
         except Exception as e:
             print(f"Errore durante la valutazione: {e}")
         end_evaluation_time = time.time()
-        print(f"Tempo totale di valutazione: {end_evaluation_time - start_evaluation_time:.2f} secondi")
+        evaluation_time = end_evaluation_time - start_evaluation_time
+        print(f"> Tempo totale di valutazione: {format_time(evaluation_time)}")
 
-    print(f"\nPipeline completata in {time.time() - start_time:.2f} secondi.")
+    print(f"\n> Pipeline completata in {format_time(time.time() - start_time)}.\n")
 
     # --- FASE 4: VISUALIZER ---
     start_video_time = time.time()
     if 'all' in args.step or 'visualizer' in args.step:
         print("\nAvvio generazione video...")
         vis = SoccerVisualizer(cfg)
-        for seq in sequences:
+        num_sequences = len(sequences)
+        for i, seq in enumerate(sequences):
             try:
+                print(f"\n[{i + 1}/{num_sequences}] Avvio generazione video per '{seq}'...")
                 vis.generate_video(seq)
             except Exception as e:
                 print(f"Errore visualizer su {seq}: {e}")
         end_video_time = time.time()
-        print(f"\nGenerazione video completata in {end_video_time - start_video_time:.2f} secondi.")
+        video_time = end_video_time - start_video_time
+        if sequences:
+            mean_video_time = video_time / len(sequences)
+            print(f"\nGenerazione video completata in {format_time(video_time)} (media: {mean_video_time:.2f} secondi/sequenza).")
+        else:
+            print(f"\nGenerazione video completata in {format_time(video_time)}.")
 
 
 if __name__ == "__main__":

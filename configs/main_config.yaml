@@ -1,7 +1,7 @@
 paths:
   input_folder: "tracking/test"       # Root delle sequenze (dove ci sono SNMOT-xxx)
   output_folder: "output/"              # Dove salvare i risultati
-  detection_model: "models/yolov11x.pt" #"models/syolov11n_soccana.pt"
+  detection_model: "models/yolo11x.pt" # "models/yolo11n_soccana.pt" 
   reid_model: "models/osnet_x1_0_soccernet.pt"  # Modello ReID leggero
   tracker_config: "configs/botsort.yaml"
   roi_config: "configs/roi_config.json" # Il file con le coordinate delle aree
@@ -17,7 +17,7 @@ tracker:
   batch: 16          # Batch size per il tracking (default 16)
   device: 0          # GPU ID
   half: False        # FP16 mode (risparmia 50% VRAM)
-  classes: [0, 2]       #[0] #[1, 2, 3] # Classi da cambiare a seconda del modello usato 
+  classes: [0]       #[0, 2] #[1, 2, 3] # Classi da cambiare a seconda del modello usato 
   verbose: False     # Stampa info dettagliate durante il tracking
   field_mask: True   # Usa la maschera del campo per filtrare le detections fuori campo
   mask_frequency: 1  # Frequenza (in frame) di aggiornamento della maschera del campo
