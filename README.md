@@ -56,7 +56,7 @@ The system was evaluated on the Challenge Test Set, achieving a PTBS (*Player Tr
 
 1. **Clone the repository:**
 ```bash
-git clone https://github.com/tuo-username/soccernet-tracking-av2025.git
+git clone https://github.com/apiantonio/soccernet-tracking-av2025.git
 cd soccernet-tracking-av2025
 
 ```
