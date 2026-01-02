@@ -1,82 +1,83 @@
+Here is the English version of the README.
 
 # ⚽ SoccerNet: Player Detection, Tracking and Behavior Analysis
 
 **Artificial Vision Project Work 2024/2025** *University of Salerno - Dept. of Information Engineering, Electrical Engineering and Applied Mathematics*
 
-**Autori:** Antonio Apicella, Antonio Graziosi  
-**Gruppo:** 16
+**Authors:** Antonio Apicella, Antonio Graziosi
+
+**Group:** 16
 
 ---
 
-## 📖 Introduzione
+## 📖 Introduction
 
-Questo progetto presenta una pipeline completa di Computer Vision sviluppata per la **SoccerNet Video Understanding Benchmark Suite**. L'obiettivo è affrontare due task principali su clip video di partite di calcio reali:
+This project presents a complete Computer Vision pipeline developed for the **SoccerNet Video Understanding Benchmark Suite**. The goal is to address two main tasks on real soccer match video clips:
 
-1.  **Player Detection & Tracking:** Rilevare e tracciare univocamente i giocatori e gli arbitri in campo ("persone di interesse"), mantenendo l'identità consistente nonostante occlusioni, movimenti rapidi della telecamera e l'assenza di caratteristiche visive distintive (divise identiche).
-2.  **Behavior Analysis:** Stimare la densità dei giocatori in specifiche *Region of Interest* (ROI) del campo per ogni frame.
+1. **Player Detection & Tracking:** Uniquely detect and track players and referees on the field ("persons of interest"), maintaining consistent identity despite occlusions, rapid camera movements, and the absence of distinctive visual features (identical jerseys).
+2. **Behavior Analysis:** Estimate player density in specific *Regions of Interest* (ROI) of the field for each frame.
 
-La soluzione proposta si basa su un approccio **Tracking-by-Detection** ottimizzato, che combina un detector allo stato dell'arte (**YOLOv11x**) configurato per l'alta sensibilità (*High Recall*), un modulo di **Field Masking** adattivo per la rimozione dei falsi positivi a bordo campo, e un tracker basato sul movimento (**BoT-SORT** con compensazione globale della telecamera GMC), privo di moduli di Re-Identificazione visiva.
+The proposed solution is based on an optimized **Tracking-by-Detection** approach, which combines a state-of-the-art detector (**YOLOv11x**) configured for high sensitivity (*High Recall*), an adaptive **Field Masking** module for removing false positives on the sidelines, and a motion-based tracker (**BoT-SORT** with global camera compensation GMC), devoid of visual Re-Identification modules.
 
-Il sistema è stato valutato sul Test Set della challenge, raggiungendo un punteggio PTBS (*Player Tracking and Behavior Score*) di **1.527**, con un HOTA di **0.742**.
-
----
-
-## 🚀 Caratteristiche Principali
-
-* **Detector High-Recall:** Utilizzo di **YOLOv11x** con risoluzione di input 1088px e soglie di confidenza minime (0.1/0.2) per rilevare piccoli oggetti e giocatori sfocati dal movimento.
-* **Field Masking Adattivo:** Algoritmo di segmentazione semantica che combina spazi colore HSV e LAB per identificare dinamicamente il manto erboso e filtrare steward, fotografi e pubblico, riducendo drasticamente i Falsi Positivi.
-* **Tracking "Pure Motion":** Implementazione di **BoT-SORT** con *Sparse Optical Flow* (GMC) per la compensazione del movimento di camera. Il sistema non utilizza Re-ID visivo, affidandosi a una logica geometrica robusta (`match_thresh: 0.9`) per evitare scambi di identità tra compagni di squadra.
-* **Analisi Comportamentale:** Stima della presenza nelle ROI basata sulla proiezione geometrica del "feet point" (punto di appoggio) dei giocatori.
+The system was evaluated on the Challenge Test Set, achieving a PTBS (*Player Tracking and Behavior Score*) of **1.527**, with an HOTA of **0.742**.
 
 ---
 
-## 📂 Struttura della Repository
+## 🚀 Main Features
+
+* **High-Recall Detector:** Use of **YOLOv11x** with 1088px input resolution and minimal confidence thresholds (0.1/0.2) to detect small objects and players blurred by motion.
+* **Adaptive Field Masking:** Semantic segmentation algorithm combining HSV and LAB color spaces to dynamically identify the pitch and filter out stewards, photographers, and the audience, drastically reducing False Positives.
+* **"Pure Motion" Tracking:** Implementation of **BoT-SORT** with *Sparse Optical Flow* (GMC) for camera motion compensation. The system does not use visual Re-ID, relying on robust geometric logic (`match_thresh: 0.9`) to avoid identity swaps between teammates.
+* **Behavior Analysis:** Presence estimation in ROIs based on the geometric projection of the players' "feet point" (ground contact point).
+
+---
+
+## 📂 Repository Structure
 
 ```text
-├── configs/              # File di configurazione YAML e JSON (tracker, ROI, main)
-├── models/               # Pesi dei modelli (YOLO, ReID) e script di conversione
-├── output/               # Cartella di output per log, video e risultati
-├── SIMULATOR/            # Codice per la simulazione e test locale
-├── src/                  # Codice sorgente principale
-│   ├── behaviour/        # Modulo per l'analisi comportamentale
-│   ├── evaluation/       # Modulo di valutazione (HOTA, nMAE) con TrackEval
-│   ├── tracker/          # Logica del tracker (integrazione YOLO + BoT-SORT)
-│   ├── utils/            # Utility (Field Masking, BBox operations, visualizzazione)
-│   ├── visualizer/       # Generazione video con overlay
-│   └── main.py           # Entry point della pipeline
+├── configs/              # YAML and JSON configuration files (tracker, ROI, main)
+├── models/               # Model weights (YOLO, ReID) and conversion scripts
+├── output/               # Output folder for logs, videos, and results
+├── SIMULATOR/            # Code for simulation and local testing
+├── src/                  # Main source code
+│   ├── behaviour/        # Module for behavior analysis
+│   ├── evaluation/       # Evaluation module (HOTA, nMAE) using TrackEval
+│   ├── tracker/          # Tracker logic (YOLO + BoT-SORT integration)
+│   ├── utils/            # Utilities (Field Masking, BBox operations, visualization)
+│   ├── visualizer/       # Video generation with overlay
+│   └── main.py           # Pipeline entry point
 └── tracking/             # Dataset (train, test, challenge)
 
 ```
 
 ---
 
-## 🛠️ Installazione
+## 🛠️ Installation
 
-1. **Clona la repository:**
+1. **Clone the repository:**
 ```bash
-git clone [https://github.com/tuo-username/soccernet-tracking-av2025.git](https://github.com/tuo-username/soccernet-tracking-av2025.git)
+git clone https://github.com/tuo-username/soccernet-tracking-av2025.git
 cd soccernet-tracking-av2025
 
 ```
 
 
-2. **Installa le dipendenze:**
-Si consiglia di utilizzare un ambiente virtuale (venv o conda).
+2. **Install dependencies:**
+It is recommended to use a virtual environment (venv or conda).
 ```bash
 pip install -r requirements.txt
 
 ```
 
 
-*Dipendenze principali:* `ultralytics`, `opencv-python`, `numpy`, `pyyaml`, `scikit-image`, `pandas`, `trackeval`.
-
-3. **Setup dei Dati:**
-Posiziona il dataset SoccerNet nella cartella `tracking/`. La struttura attesa per ogni sequenza è:
+*Main dependencies:* `ultralytics`, `opencv-python`, `numpy`, `pyyaml`, `scikit-image`, `pandas`, `trackeval`.
+3. **Data Setup:**
+Place the SoccerNet dataset in the `tracking/` folder. The expected structure for each sequence is:
 ```text
 tracking/test/SNMOT-XXX/
-├── img1/          # Frame JPEG
-├── gt/gt.txt      # Ground Truth (opzionale per inferenza)
-└── gameinfo.ini   # Metadati
+├── img1/          # JPEG Frames
+├── gt/gt.txt      # Ground Truth (optional for inference)
+└── gameinfo.ini   # Metadata
 
 ```
 
@@ -84,26 +85,26 @@ tracking/test/SNMOT-XXX/
 
 ---
 
-## 💻 Utilizzo
+## 💻 Usage
 
-La pipeline può essere eseguita tramite lo script `src/main.py`. È possibile specificare quali step eseguire (tracking, analisi, visualizzazione, valutazione).
+The pipeline can be executed via the `src/main.py` script. You can specify which steps to perform (tracking, analysis, visualization, evaluation).
 
-### Esempio Base (Esecuzione Completa)
+### Basic Example (Full Execution)
 
 ```bash
 python src/main.py --config configs/main_config.yaml --step all --seq all
 
 ```
 
-### Argomenti Principali
+### Main Arguments
 
-* `--step`: Scegliere tra `tracking`, `behaviour`, `eval`, `visualizer` o `all`.
-* `--seq`: Specificare una o più sequenze (es. `SNMOT-116`) o `all` per elaborare l'intera cartella.
-* `--debug`: Attiva la visualizzazione a schermo (`show_tracks`, `show_mask`, `show_behaviour`).
+* `--step`: Choose between `tracking`, `behaviour`, `eval`, `visualizer` or `all`.
+* `--seq`: Specify one or more sequences (e.g., `SNMOT-116`) or `all` to process the entire folder.
+* `--debug`: Enables on-screen visualization (`show_tracks`, `show_mask`, `show_behaviour`).
 
-### Configurazione Parametri
+### Parameter Configuration
 
-I parametri del tracker possono essere modificati nel file `configs/botsort_8.yaml` o passati da riga di comando:
+Tracker parameters can be modified in the `configs/botsort_8.yaml` file or passed via command line:
 
 ```bash
 python src/main.py --conf 0.1 --iou 0.7 --tracker_config configs/botsort.yaml
@@ -112,26 +113,26 @@ python src/main.py --conf 0.1 --iou 0.7 --tracker_config configs/botsort.yaml
 
 ---
 
-## 📊 Risultati e Metriche
+## 📊 Results and Metrics
 
-Il sistema è stato valutato sul Test Set ufficiale. Di seguito i risultati ottenuti:
+The system was evaluated on the official Test Set. Below are the obtained results:
 
-| Metrica | Valore | Descrizione |
+| Metric | Value | Description |
 | --- | --- | --- |
-| **HOTA** | **0.742** | Higher Order Tracking Accuracy (Bilanciamento Detection/Association) |
-| **DetA** | **0.863** | Detection Accuracy (Precisione del rilevamento) |
-| **AssA** | **0.636** | Association Accuracy (Stabilità delle traiettorie) |
-| **nMAE** | **0.785** | Normalized Mean Absolute Error (Precisione conteggio ROI) |
-| **PTBS** | **1.527** | **Player Tracking and Behavior Score (Score Finale)** |
+| **HOTA** | **0.742** | Higher Order Tracking Accuracy (Detection/Association Balance) |
+| **DetA** | **0.863** | Detection Accuracy (Detection Precision) |
+| **AssA** | **0.636** | Association Accuracy (Trajectory Stability) |
+| **nMAE** | **0.785** | Normalized Mean Absolute Error (ROI Counting Precision) |
+| **PTBS** | **1.527** | **Player Tracking and Behavior Score (Final Score)** |
 
-### Punti di Forza
+### Strengths
 
-* **Alta DetA (0.863):** Grazie alla strategia "High Recall", il sistema non perde quasi mai i giocatori, anche in situazioni difficili.
-* **AssA Competitiva (0.636):** Nonostante l'assenza di Re-ID, l'uso aggressivo del GMC e soglie di matching strette garantisce un tracciamento stabile.
+* **High DetA (0.863):** Thanks to the "High Recall" strategy, the system almost never misses players, even in difficult situations.
+* **Competitive AssA (0.636):** Despite the absence of Re-ID, the aggressive use of GMC and tight matching thresholds ensures stable tracking.
 
 ---
 
-## 📜 Riferimenti
+## 📜 References
 
 * **YOLO11:** Jocher, G., & Qiu, J. (2024). *Ultralytics YOLO11*. [GitHub](https://github.com/ultralytics/ultralytics).
 * **SoccerNet:** Deliege, A., et al. (2021). *SoccerNet-v2: A Dataset and Benchmarks for Holistic Understanding of Broadcast Soccer Videos*.
@@ -139,4 +140,4 @@ Il sistema è stato valutato sul Test Set ufficiale. Di seguito i risultati otte
 
 ---
 
-*Progetto sviluppato per il corso di Artificial Vision, A.A. 2025/2026.*
+*Project developed for the Artificial Vision course, A.Y. 2025/2026.*
