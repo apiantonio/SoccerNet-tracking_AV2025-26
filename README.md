@@ -1,6 +1,6 @@
 # ⚽ SoccerNet: Player Detection, Tracking and Behavior Analysis
 
-**Artificial Vision Project Work 2024/2025** *University of Salerno - Dept. of Information Engineering, Electrical Engineering and Applied Mathematics*
+**Artificial Vision Project Work 2025/2026** *University of Salerno - Dept. of Information Engineering, Electrical Engineering and Applied Mathematics*
 
 **Authors:** Antonio Apicella, Antonio Graziosi
 
