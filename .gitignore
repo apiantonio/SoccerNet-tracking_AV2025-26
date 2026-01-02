@@ -6,9 +6,12 @@ tracking/challenge/
 SIMULATOR/lecture_example_from_training
 
 # --- Output video di Esecuzioni ---
-output/**/*.mp4
-output/**/*.avi
-output/**/*.txt
+output/*
+
+!output/best_on_test/
+output/best_on_test/*.mp4
+output/best_on_test/*.avi
+!output/*.csv
 
 # --- Python Cache e Ambienti Virtuali ---
 __pycache__/

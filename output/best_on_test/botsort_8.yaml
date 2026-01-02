@@ -1,0 +1,78 @@
+# Docs: https://docs.ultralytics.com/modes/track/#tracker-arguments
+#       https://github.com/ultralytics/ultralytics/blob/main/ultralytics/cfg/trackers/botsort.yaml
+
+tracker_type: botsort     # (str) Tracker backend: botsort|bytetrack; choose botsort to enable BoT-SORT features
+track_high_thresh: 0.35   # (float) First-stage match threshold; raise for cleaner tracks, lower to keep more
+track_low_thresh: 0.20    # (float) Second-stage threshold for low-score matches; balances recovery vs drift
+new_track_thresh: 0.40    # (float) Start a new track if no match ≥ this; higher reduces false tracks
+track_buffer: 150         # (int) Frames to keep lost tracks alive; higher handles occlusion, increases ID switches risk
+match_thresh: 0.90        # (float) Association similarity threshold (IoU/cost); tune with detector quality
+fuse_score: True          # (bool) Fuse detection score with motion/IoU for matching; stabilizes weak detections
+
+# BoT-SORT specifics
+gmc_method: sparseOptFlow # (str) Global motion compensation: sparseOptFlow|orb|none; helps moving camera scenes
+
+# ReID model related thresh
+with_reid: False           # (bool) Enable ReID model use; needs extra model and compute
+proximity_thresh: 0.50    # (float) Min IoU to consider tracks proximate for ReID; higher is stricter
+appearance_thresh: 0.20   # (float) Min appearance similarity for ReID; raise to avoid identity swaps
+model: auto               # (str) ReID model name/path; "auto" uses detector features if available
+reid_model: models/osnet_x1_0_soccernet.pt #osnet_x1_0_msmt17.pt # (str) ReID model file; choose a lightweight model for speed
+
+# =================================================================================================================================
+# EVALUATION (TrackEval Official) - 2025-12-28 18:41:17.764506
+# SEQUENCE        | HOTA    | DetA    | AssA    | nMAE    |
+# ---------------------------------------------------------------------------------------------------------------------------------
+# 116             |  64.40% |  83.11% |  49.91% |  85.27% |
+# 117             |  83.07% |  89.19% |  77.38% |  86.30% |
+# 118             |  82.25% |  86.85% |  77.89% |  78.70% |
+# 119             |  89.72% |  91.19% |  88.27% |  85.51% |
+# 120             |  67.34% |  86.70% |  52.31% |  83.49% |
+# 121             |  79.97% |  93.96% |  68.06% |  81.77% |
+# 122             |  65.38% |  85.51% |  49.99% |  84.17% |
+# 123             |  75.03% |  88.96% |  63.28% |  81.35% |
+# 124             |  66.79% |  82.07% |  54.35% |  78.52% |
+# 125             |  67.27% |  83.32% |  54.31% |  76.81% |
+# 126             |  77.92% |  89.42% |  67.90% |  86.18% |
+# 127             |  91.38% |  89.93% |  92.87% |  80.40% |
+# 128             |  84.53% |  88.18% |  81.03% |  78.95% |
+# 129             |  58.44% |  86.77% |  39.36% |  81.34% |
+# 130             |  84.74% |  93.58% |  76.73% |  84.41% |
+# 131             |  70.33% |  85.59% |  57.79% |  75.25% |
+# 132             |  64.32% |  67.30% |  61.48% |  79.52% |
+# 133             |  71.37% |  84.38% |  60.36% |  83.38% |
+# 134             |  80.12% |  86.68% |  74.05% |  85.73% |
+# 135             |  60.77% |  76.36% |  48.37% |  70.31% |
+# 136             |  76.84% |  84.51% |  69.87% |  78.07% |
+# 137             |  81.51% |  88.40% |  75.17% |  83.31% |
+# 138             |  63.23% |  81.77% |  48.89% |  85.83% |
+# 139             |  69.28% |  83.98% |  57.15% |  79.70% |
+# 140             |  62.03% |  86.01% |  44.74% |  73.57% |
+# 141             |  69.91% |  85.32% |  57.28% |  68.17% |
+# 142             |  50.15% |  70.34% |  35.76% |  71.07% |
+# 143             |  74.22% |  87.60% |  62.88% |  81.15% |
+# 144             |  76.18% |  90.52% |  64.12% |  76.17% |
+# 145             |  59.97% |  75.10% |  47.89% |  82.51% |
+# 146             |  82.01% |  91.86% |  73.21% |  81.19% |
+# 147             |  65.97% |  80.25% |  54.23% |  89.77% |
+# 148             |  82.46% |  92.79% |  73.28% |  83.13% |
+# 149             |  79.83% |  92.83% |  68.65% |  77.29% |
+# 150             |  67.74% |  76.58% |  59.92% |  72.23% |
+# 187             |  76.81% |  94.85% |  62.21% |  59.39% |
+# 188             |  86.14% |  86.59% |  85.69% |  77.93% |
+# 189             |  74.92% |  91.71% |  61.20% |  72.23% |
+# 190             |  77.34% |  90.98% |  65.74% |  71.55% |
+# 191             |  73.65% |  93.93% |  57.74% |  68.28% |
+# 192             |  78.97% |  88.20% |  70.71% |  73.92% |
+# 193             |  64.35% |  85.86% |  48.23% |  73.66% |
+# 194             |  81.90% |  91.88% |  73.01% |  79.04% |
+# 195             |  86.61% |  94.96% |  79.00% |  73.31% |
+# 196             |  69.67% |  85.77% |  56.60% |  80.89% |
+# 197             |  84.88% |  92.07% |  78.25% |  79.36% |
+# 198             |  73.80% |  83.65% |  65.11% |  82.49% |
+# 199             |  54.36% |  74.08% |  39.89% |  72.23% |
+# 200             |  74.31% |  93.74% |  58.91% |  73.77% |
+# ---------------------------------------------------------------------------------------------------------------------------------
+# GLOBAL          |  74.20% |  86.44% |  63.69% |  78.54% |
+# PTBS                 |  1.5274
+# ==================================================================================================================================
