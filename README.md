@@ -55,7 +55,7 @@ The system was evaluated on the Challenge Test Set, achieving a PTBS (*Player Tr
 1. **Clone the repository:**
 ```bash
 git clone https://github.com/apiantonio/SoccerNet-tracking_AV2025-26
-cd soccernet-tracking-av2025
+cd SoccerNet-tracking_AV2025-26
 
 ```
 
@@ -69,6 +69,7 @@ pip install -r requirements.txt
 
 
 *Main dependencies:* `ultralytics`, `opencv-python`, `numpy`, `pyyaml`, `scikit-image`, `pandas`, `trackeval`.
+
 3. **Data Setup:**
 Place the SoccerNet dataset in the `tracking/` folder. The expected structure for each sequence is:
 ```text
