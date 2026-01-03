@@ -1,6 +1,6 @@
 # ⚽ SoccerNet: Player Detection, Tracking and Behavior Analysis
 
-**Artificial Vision Project Work 2024/2025** *University of Salerno - Dept. of Information Engineering, Electrical Engineering and Applied Mathematics*
+**Artificial Vision Project Work 2025/2026** *University of Salerno - Dept. of Information Engineering, Electrical Engineering and Applied Mathematics*
 
 **Authors:** Antonio Apicella, Antonio Graziosi
 
@@ -54,8 +54,8 @@ The system was evaluated on the Challenge Test Set, achieving a PTBS (*Player Tr
 
 1. **Clone the repository:**
 ```bash
-git clone https://github.com/tuo-username/soccernet-tracking-av2025.git
-cd soccernet-tracking-av2025
+git clone https://github.com/apiantonio/SoccerNet-tracking_AV2025-26
+cd SoccerNet-tracking_AV2025-26
 
 ```
 
@@ -69,6 +69,7 @@ pip install -r requirements.txt
 
 
 *Main dependencies:* `ultralytics`, `opencv-python`, `numpy`, `pyyaml`, `scikit-image`, `pandas`, `trackeval`.
+
 3. **Data Setup:**
 Place the SoccerNet dataset in the `tracking/` folder. The expected structure for each sequence is:
 ```text
