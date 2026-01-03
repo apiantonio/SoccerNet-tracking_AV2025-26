@@ -53,7 +53,6 @@ class SoccerTracker:
 
         if debug_cfg is True or isinstance(debug_cfg, dict):
             self.debug = True
-            # Su Colab forziamo batch=1 per permettere la visualizzazione frame-by-frame
             self.batch_size = 1
 
             if isinstance(debug_cfg, dict):
@@ -89,11 +88,11 @@ class SoccerTracker:
         output_path = os.path.join(output_dir, output_filename)
 
         # print(f"\n- Avvio Tracking su sequenza {sequence_name} |")
-        # 2. Pulizia Memoria
+        # Pulizia Memoria
         gc.collect()
         torch.cuda.empty_cache()
 
-        # 3. Parametri YOLO
+        # Parametri YOLO
         track_params = {
             'source': source_path,
             'tracker': self.tracker_cfg_path,
@@ -111,19 +110,19 @@ class SoccerTracker:
 
         results = self.model.track(**track_params)
 
-        # 4. Inizializzazione Ciclo
+        # Inizializzazione Ciclo
         field_mask = None
         # start_time = time.time()
 
         with open(output_path, 'w') as f:
             buffer = []
 
-            # 5. Loop sui Frame
+            # Loop sui Frame
             for frame_idx, r in enumerate(results):
                 img = r.orig_img
                 frame_log_id = frame_idx + 1
 
-                # A. Gestione Maschera Campo
+                # Gestione Maschera del campo
                 if self.use_field_mask:
                     # Calcola maschera se: frequenza raggiunta OR prima volta OR serve per debug visivo
                     if frame_idx % self.mask_frequency == 0 or field_mask is None or self.show_mask_overlay:
@@ -134,7 +133,7 @@ class SoccerTracker:
 
                 det_to_draw = []
 
-                # B. Estrazione Detection
+                # Estrazione Detection
                 if r.boxes is not None and r.boxes.id is not None:
                     boxes_xywh = r.boxes.xywh.cpu().numpy()
                     track_ids = r.boxes.id.cpu().numpy()
@@ -149,25 +148,25 @@ class SoccerTracker:
                             if self.debug:
                                 det_to_draw.append((tl_x, tl_y, w, h, int(t_id)))
 
-                # C. Visualizzazione Debug (Safety Check)
+                # Visualizzazione Debug (Safety Check)
                 if self.debug:
                     # Se la visualizzazione fallisce, disattiviamo il debug per evitare crash continui
                     if not self._drawer_debug(img, det_to_draw, field_mask, sequence_name, frame_idx):
                         print("Errore visualizzazione: disattivo debug grafico.")
                         self.debug = False
 
-                # D. Scrittura su Disco
+                # Scrittura su Disco
                 if frame_log_id % self.buffer_size == 0:
                     f.writelines(buffer)
                     buffer.clear()
                     f.flush()
 
-            # 6. Flush Finale
+            # Flush Finale
             if buffer:
                 f.writelines(buffer)
                 f.flush()
 
-        # 7. Chiusura Debug
+        # Chiusura Debug
         if self.debug:
             try:
                 cv2.destroyAllWindows()
@@ -194,7 +193,7 @@ class SoccerTracker:
             canvas = img.copy()
             h_img, w_img = canvas.shape[:2]
 
-            # 1. Maschera Campo
+            # Maschera Campo
             if self.show_mask_overlay and field_mask is not None:
                 green_overlay = np.zeros_like(canvas)
                 green_overlay[field_mask > 0] = [0, 255, 0]
@@ -202,7 +201,7 @@ class SoccerTracker:
                 contours, _ = cv2.findContours(field_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
                 cv2.drawContours(canvas, contours, -1, (0, 255, 0), 2)
 
-            # 2. Behaviour (ROI)
+            # Behaviour (ROI)
             if self.show_behaviour:
                 for key in ['roi1', 'roi2']:
                     if key in self.roi_data:
@@ -214,12 +213,12 @@ class SoccerTracker:
                                 count += 1
                         self.drawer.draw_roi(canvas, roi_rect, f"{key.upper()}: {count}", key)
 
-            # 3. Tracking (Box)
+            # Tracking (Box)
             if self.show_track:
                 for (x, y, w, h, t_id) in det_to_draw:
                     self.drawer.draw_player(canvas, (x, y, w, h), t_id)
 
-            # 4. Info
+            # Info
             info_text = f"LIVE: {sequence_name} | Frame: {frame_idx}"
             cv2.putText(canvas, info_text, (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 255), 2)
 

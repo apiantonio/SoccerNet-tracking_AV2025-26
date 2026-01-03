@@ -75,7 +75,7 @@ def get_field_mask(frame):
     k_open = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
     k_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (25, 25))
 
-    # Rimuovi rumore (spettatori con maglie verdi, coriandoli)
+    # Rimuovi rumore
     mask_clean = cv2.morphologyEx(combined_mask, cv2.MORPH_OPEN, k_open, iterations=2)
 
     # Chiudi i buchi (giocatori, linee bianche interne al campo)
@@ -124,9 +124,9 @@ def is_point_on_field(point, field_mask, bottom_tolerance=40):
 
     # Clamp coordinates
     x = max(0, min(x, w - 1))
-
-    # Tolleranza per i piedi che toccano quasi il bordo inferiore dell'immagine
-    # Se siamo molto in basso, assumiamo sia campo (la camera non inquadra sotto terra)
+    
+    # La mask a volte è "ritirata" sugli ultimi pixel risultando "non campo"
+    # ciò scarterebbe i giocatori in primo piano che toccano il bordo inferiore, dunque consideriamo una tolleranza
     if y >= h - bottom_tolerance:
         return True
 

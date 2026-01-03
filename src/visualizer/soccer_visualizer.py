@@ -105,7 +105,7 @@ class SoccerVisualizer:
             frame = cv2.imread(img_path)
             frame_id = i + 1
 
-            # --- 1. VISUALIZZAZIONE ROI (Sfondo) ---
+            # --- VISUALIZZAZIONE ROI ---
             # Recupera conteggi per il frame corrente
             count1 = behaviors.get(frame_id, {}).get(1, 0)
             count2 = behaviors.get(frame_id, {}).get(2, 0)
@@ -120,12 +120,12 @@ class SoccerVisualizer:
                 header_text = f"ROI 2 | Players: {count2}"
                 self.drawer.draw_roi(frame, roi2_rect, header_text, 'roi2')
 
-            # --- 2. TRACKING E ID GIOCATORI ---
+            # --- TRACKING E ID GIOCATORI ---
             if frame_id in tracks:
                 for obj in tracks[frame_id]:
                     self.drawer.draw_player(frame, obj['bbox'], obj['id'])
 
-            # --- 3. INFO GENERALI ---
+            # --- INFO GENERALI ---
             info_text = f"Frame: {frame_id} | Total tracked: {len(tracks.get(frame_id, []))}"
             cv2.putText(frame, info_text, (20, h_img - 20), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (200, 200, 200), 1)
 

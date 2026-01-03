@@ -39,12 +39,11 @@ class BehaviorAnalyzer:
 
         print(f"- Analisi Behaviour su sequenza: {sequence_name} |")
 
-        # 1. Parsing delle ROI utilizzando BBoxOperations
-        # Passiamo le dimensioni hardcoded (1920x1080) perché qui non carichiamo le immagini
+        # Parsing delle ROI utilizzando BBoxOperations
         roi1_abs = BBoxOperations.get_absolute_roi(self.roi_data['roi1'], self.img_width, self.img_height)
         roi2_abs = BBoxOperations.get_absolute_roi(self.roi_data['roi2'], self.img_width, self.img_height)
 
-        # 2. Caricamento dati tracking
+        # Caricamento dati tracking
         try:
             # Formato file tracking: frame, id, x, y, w, h
             data = np.loadtxt(tracking_file, delimiter=',')
@@ -74,21 +73,16 @@ class BehaviorAnalyzer:
                     # Estrai coordinate bounding box: x, y, w, h
                     _, _, x, y, w, h = det
 
-                    # LOGICA PAGINA 8:
-                    # "A player is considered in a ROI if the center of the basis
-                    # of the bounding box is inside the ROI"
-
-                    # Usa la utility centrale per calcolare i piedi
+                    # calcolare i piedi
                     feet_point = BBoxOperations.get_feet_point((x, y, w, h))
 
-                    # Usa la utility centrale per verificare l'intersezione
                     if BBoxOperations.is_point_in_rect(roi1_abs, feet_point):
                         count_roi_1 += 1
 
                     if BBoxOperations.is_point_in_rect(roi2_abs, feet_point):
                         count_roi_2 += 1
 
-                # Scrivi output come: frame_id, region_id, n_players
+                # frame_id, region_id, n_players
                 f.write(f"{frame_idx},1,{count_roi_1}\n")
                 f.write(f"{frame_idx},2,{count_roi_2}\n")
 

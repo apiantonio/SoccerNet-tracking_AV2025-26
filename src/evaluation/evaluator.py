@@ -136,7 +136,7 @@ class Evaluator:
         print(f"{'SEQUENCE':<15} | {'HOTA':<7} | {'DetA':<7} | {'AssA':<7} | {'nMAE':<7} | {'TP':<6} | {'FN':<6} | {'FP':<6} |")
         print("-" * 125)
 
-        # 1. Preparazione Cartelle TrackEval
+        # Preparazione Cartelle TrackEval
         try:
             gt_folder, tr_folder, seqmap_file = build_trackeval_structure(
                 dataset_root=self.input_folder,
@@ -153,8 +153,8 @@ class Evaluator:
             print(f"Errore critico setup TrackEval: {e}")
             return
 
-        # 2. Esecuzione TrackEval (Silenziata)
-        # TrackEval calcola SEMPRE tutto quello che trova nelle cartelle
+        # Esecuzione TrackEval (Silenziata)
+        # TrackEval calcola su tutto quello che trova nelle cartelle
         official_results = compute_metrics_with_details(
             gt_folder=gt_folder,
             trackers_folder=tr_folder,
@@ -170,7 +170,7 @@ class Evaluator:
         # Definiamo il set di sequenze valide da mostrare (se specificato)
         valid_sequences = set(sequences) if (sequences and 'all' not in sequences) else None
 
-        # 3. Iterazione sui risultati
+        # Iterazione sui risultati
         for row in official_results:
             seq_name = row['Video']
 
@@ -187,7 +187,7 @@ class Evaluator:
                     group=self.team_id,
                     sequences=valid_sequences
                 )
-                # Usa .get con default 0.0 per sicurezza
+                
                 nmae = beh_metrics.get('nMAE', 0.0) or 0.0
 
                 global_raw_counts['TP'] = row['TP']
@@ -213,7 +213,7 @@ class Evaluator:
 
         print("-" * 125)
 
-        # 4. Estrazione Globale per PTBS e Salvataggio
+        # Estrazione Globale per PTBS e Salvataggio
         # Cerchiamo la riga globale nella lista filtrata
         global_row = next((r for r in final_rows if r['Video'] == 'GLOBAL_SCORE'), None)
 
@@ -240,7 +240,7 @@ class Evaluator:
     def _save_results(self, results_list, avg_hota, global_nmae, avg_deta, avg_assa, final_ptbs, global_raw_counts):
         """Salva JSON e appende al TXT (Config Tracker)."""
 
-        # 1. JSON
+        # JSON
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"results_{self.team_id}_{timestamp}.json"
         save_path = os.path.join(self.output_folder, filename)
@@ -273,7 +273,7 @@ class Evaluator:
         except:
             pass
 
-        # 2. Append al Tracker Config
+        # Append al Tracker Config per debug
         if tracker_cfg_path and os.path.exists(tracker_cfg_path):
             cfg_name = os.path.basename(tracker_cfg_path)
             saved_cfg_path = os.path.join(self.output_folder, cfg_name)

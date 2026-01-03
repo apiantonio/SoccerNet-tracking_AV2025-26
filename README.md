@@ -1,5 +1,3 @@
-Here is the English version of the README.
-
 # ⚽ SoccerNet: Player Detection, Tracking and Behavior Analysis
 
 **Artificial Vision Project Work 2024/2025** *University of Salerno - Dept. of Information Engineering, Electrical Engineering and Applied Mathematics*
