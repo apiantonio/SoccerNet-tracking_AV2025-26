@@ -17,7 +17,7 @@ This project presents a complete Computer Vision pipeline developed for the **So
 
 The proposed solution is based on an optimized **Tracking-by-Detection** approach, which combines a state-of-the-art detector (**YOLOv11x**) configured for high sensitivity (*High Recall*), an adaptive **Field Masking** module for removing false positives on the sidelines, and a motion-based tracker (**BoT-SORT** with global camera compensation GMC), devoid of visual Re-Identification modules.
 
-The system was evaluated on the Challenge Test Set, achieving a PTBS (*Player Tracking and Behavior Score*) of **1.527**, with an HOTA of **0.742**.
+The system was evaluated on the Challenge Test Set, achieving an HOTA@0.5 of **0.742**.
 
 ---
 
