@@ -10,7 +10,7 @@ def get_field_mask(frame):
     Genera una maschera del campo robusta utilizzando:
     1. Analisi istogramma adattiva (invece di ROI fissa)
     2. Combinazione spazi colore HSV + LAB (canale 'a' per il verde)
-    3. FloodFill e ConvexHull
+    3. ConvexHull
     """
     h_orig, w_orig = frame.shape[:2]
 

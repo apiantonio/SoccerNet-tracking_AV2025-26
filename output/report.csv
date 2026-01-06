@@ -1,4 +1,5 @@
 Folder,Filename,Path,# Seq,PTBS,HOTA_05,nMAE,AssA,DetA,TP,FP,FN,TPA,FNA,FPA,Conf,IoU,ImgSz,Buffer,High_Th,Low_Th,New_Th,Match_Th,Fuse,ReID,App_Th,Prox_Th,ReID_Model
+best_test_mask,results_16_20260103_000032.json,output\best_test_mask\results_16_20260103_000032.json,49,1.527445,0.742012,0.785433,0.636569,0.864921,486103,27141,44315,N/A,N/A,N/A,0.1,0.7,1088,150,0.35,0.2,0.4,0.9,True,False,-,-,-
 best_on_test,results_16_20251228_184117.json,output\best_on_test\results_16_20251228_184117.json,49,1.5274,0.742,0.7854,N/A,N/A,486141,27514,44277,N/A,N/A,N/A,0.2,0.7,1088,N/A,N/A,N/A,N/A,N/A,N/A,False,-,-,-
 test_val_soccana_reid,results_16_20260101_143541.json,output\test_val_soccana_reid\results_16_20260101_143541.json,49,1.526333,0.741462,0.784871,0.635781,0.86471,487155,27983,43263,N/A,N/A,N/A,0.1,0.7,1088,180,0.35,0.1,0.5,0.95,True,False,-,-,-
 test_val_soccana_reid,results_16_20251231_180402.json,output\test_val_soccana_reid\results_16_20251231_180402.json,49,1.528314,0.741026,0.787288,0.637923,0.860792,482555,25498,47863,N/A,N/A,N/A,0.1,0.7,1088,180,0.5,0.05,0.6,0.95,True,False,-,-,-
